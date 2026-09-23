@@ -1,17 +1,16 @@
 # Apollo
 #
 # Common workflows wrapped as `make` targets. Run `make help` for the list.
-# Most targets shell out to `uv` — `make setup` installs it when missing.
+# Python targets shell out to `uv`; the UI needs Node 20+ (`make setup` checks).
 
-# Resolve `uv`: prefer one already on PATH, else the location the official
-# installer drops it (~/.local/bin) on both Linux and macOS. Override with
-# `make UV=/path/to/uv ...`.
 UV ?= $(shell command -v uv 2>/dev/null || echo $(HOME)/.local/bin/uv)
 PYTHON := $(UV) run python
 PYTEST := $(UV) run pytest
+NPM ?= npm
+FRONTEND := frontend
 
 # Host/port for run-dev and the live checks. `make run` and the background
-# service read HOST/PORT from config.Settings (the environment / .env) instead.
+# service read HOST/PORT from config.Settings (the environment / .env).
 HOST ?= 0.0.0.0
 PORT ?= 8000
 APOLLO_HOST ?= http://localhost:$(PORT)
@@ -27,31 +26,31 @@ help:
 	@echo "Apollo — make targets"
 	@echo ""
 	@echo "Pipeline (Linux + macOS):"
-	@echo "  make setup            Ensure the uv toolchain is installed"
-	@echo "  make build            Sync deps into .venv and byte-compile sources"
-	@echo "  make run              Start the server in the foreground"
+	@echo "  make setup            Ensure uv is installed and Node 20+ is present"
+	@echo "  make build            Sync Python deps, build the UI into frontend/dist"
+	@echo "  make run              Serve API + built UI in the foreground"
 	@echo "  -> full bootstrap:    make setup build run"
 	@echo ""
 	@echo "Setup:"
 	@echo "  make install          Alias for build"
-	@echo "  make lock             Re-lock dependencies (regenerate uv.lock)"
-	@echo "  make clean            Remove caches, build artefacts, *.pyc"
-	@echo "  make distclean        clean + remove .venv"
+	@echo "  make lock             Re-lock Python dependencies (uv.lock)"
+	@echo "  make clean            Remove caches, build artefacts, frontend/dist"
+	@echo "  make distclean        clean + remove .venv and frontend/node_modules"
 	@echo ""
 	@echo "Run:"
-	@echo "  make run-dev          Start with auto-reload (HOST/PORT overridable)"
+	@echo "  make run-dev          API with reload on :$(PORT) + UI dev server on :5173/ui/"
 	@echo "  make open             Open the web UI in a browser"
 	@echo "  make health           curl /api/health on a running server"
 	@echo ""
 	@echo "Tests:"
-	@echo "  make test             Run the pytest suite"
+	@echo "  make test             pytest, then vitest"
 	@echo ""
 	@echo "Background service (systemd on Linux/Pi, launchd on macOS):"
 	@echo "  make service-install    Install + start the server at boot/login"
 	@echo "  make service-uninstall  Stop and remove it"
 	@echo "  make service-status     Show whether it is running"
 	@echo "  make service-logs       Follow its logs"
-	@echo "  make service-restart    Restart it (e.g. after a git pull)"
+	@echo "  make service-restart    Restart it (after git pull && make build)"
 	@echo ""
 	@echo "Kiosk display (Linux/Pi only; install the service first):"
 	@echo "  make kiosk-install            Auto-detect desktop vs headless"
@@ -62,8 +61,6 @@ help:
 # Setup / build
 # ---------------------------------------------------------------------------
 
-# setup — ensure the uv toolchain exists. Idempotent; uses the official
-# installer only when uv is missing, preferring curl and falling back to wget.
 .PHONY: setup
 setup:
 	@if [ -x "$(UV)" ] || command -v uv >/dev/null 2>&1; then \
@@ -80,13 +77,20 @@ setup:
 		fi; \
 		echo "uv installed to $(HOME)/.local/bin — ensure it is on your PATH."; \
 	fi
+	@if command -v node >/dev/null 2>&1 && [ "$$(node -p 'process.versions.node.split(".")[0]')" -ge 20 ]; then \
+		echo "node present: $$(node --version)"; \
+	else \
+		echo "ERROR: Node.js 20+ is required to build the UI."; \
+		echo "  macOS:     brew install node"; \
+		echo "  Pi/Debian: install Node 20+ from https://nodejs.org/en/download (NodeSource)"; \
+		exit 1; \
+	fi
 
-# build — sync locked deps into .venv, then byte-compile the sources so a
-# syntax error fails the build on any platform.
 .PHONY: build
 build:
 	$(UV) sync
 	$(UV) run python -m compileall -q core services schemas main.py config.py
+	cd $(FRONTEND) && $(NPM) ci && $(NPM) run build
 	@echo "Build complete."
 
 .PHONY: install
@@ -98,16 +102,17 @@ lock:
 
 .PHONY: clean
 clean:
-	@find . -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
+	@find . -path ./$(FRONTEND)/node_modules -prune -o -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
 	@find . -type d -name .pytest_cache -prune -exec rm -rf {} + 2>/dev/null || true
 	@find . -type d -name '*.egg-info' -prune -exec rm -rf {} + 2>/dev/null || true
-	@find . -type f -name '*.pyc' -delete 2>/dev/null || true
+	@find . -path ./$(FRONTEND)/node_modules -prune -o -type f -name '*.pyc' -delete 2>/dev/null || true
+	@rm -rf $(FRONTEND)/dist
 	@echo "Cleaned caches and build artefacts."
 
 .PHONY: distclean
 distclean: clean
-	@rm -rf .venv
-	@echo "Removed .venv. Run 'make build' to rebuild."
+	@rm -rf .venv $(FRONTEND)/node_modules
+	@echo "Removed .venv and node_modules. Run 'make build' to rebuild."
 
 # ---------------------------------------------------------------------------
 # Run
@@ -119,6 +124,9 @@ run:
 
 .PHONY: run-dev
 run-dev:
+	@echo "API on :$(PORT) — UI dev server on http://localhost:5173/ui/"
+	@trap 'kill 0' INT TERM EXIT; \
+	(cd $(FRONTEND) && $(NPM) run dev -- --host) & \
 	$(UV) run uvicorn main:build_app --factory --reload --host $(HOST) --port $(PORT)
 
 .PHONY: open
@@ -136,6 +144,7 @@ health:
 .PHONY: test
 test:
 	$(PYTEST) -v
+	@if [ -d $(FRONTEND)/node_modules ]; then cd $(FRONTEND) && $(NPM) test; fi
 
 # ---------------------------------------------------------------------------
 # Background service — see scripts/install-server.sh
