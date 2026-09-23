@@ -88,19 +88,19 @@ class WorkoutService:
             if self.catalog.exercise(key) is None:
                 raise Invalid(f"unknown exercise {key!r}")
         now = self.clock.now_iso()
-        try:
-            with self.db.tx() as conn:
-                if conn.execute("SELECT 1 FROM workout WHERE ended_at IS NULL").fetchone():
-                    raise Conflict("a workout is already in progress")
+        with self.db.tx() as conn:
+            if conn.execute("SELECT 1 FROM workout WHERE ended_at IS NULL").fetchone():
+                raise Conflict("a workout is already in progress")
+            try:
                 workout_id = conn.execute(
                     "INSERT INTO workout (started_at, local_date, created_at, updated_at) VALUES (?,?,?,?)",
                     (now, self.clock.today().isoformat(), now, now),
                 ).lastrowid
-                for key in planned_exercises:
-                    self._add_exercise(conn, workout_id, key, planned=True)
-                return self._load(conn, workout_id)
-        except sqlite3.IntegrityError as exc:
-            raise Conflict("a workout is already in progress") from exc
+            except sqlite3.IntegrityError as exc:
+                raise Conflict("a workout is already in progress") from exc
+            for key in planned_exercises:
+                self._add_exercise(conn, workout_id, key, planned=True)
+            return self._load(conn, workout_id)
 
     def add_exercise(self, workout_id: int, exercise_key: str, planned: bool = False) -> ExerciseOut:
         with self.db.tx() as conn:
@@ -213,7 +213,7 @@ class WorkoutService:
                 WHERE s.done = 1 AND s.workout_exercise_id = (
                       SELECT we.id FROM workout_exercise we JOIN workout w ON w.id = we.workout_id
                        WHERE we.exercise_key = ? AND w.ended_at IS NOT NULL
-                       ORDER BY w.started_at DESC, we.position DESC LIMIT 1)
+                       ORDER BY w.started_at DESC, we.position DESC, w.id DESC LIMIT 1)
                 ORDER BY s.position""",
             (key,),
         ).fetchall()

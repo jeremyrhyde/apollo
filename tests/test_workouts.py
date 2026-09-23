@@ -83,6 +83,23 @@ def test_prefill_ignores_the_open_workout(workouts):
     assert [(s.weight, s.reps) for s in again.sets] == [(None, None)]
 
 
+def test_prefill_prefers_the_newer_workout_when_started_at_ties(workouts, env):
+    # finish() doesn't exist yet (Task 10), so mark workouts finished directly.
+    w1 = workouts.start([])
+    log_exercise(workouts, w1.id, "bench_press", [{"weight": 40.0, "reps": 10}])
+    with env.db.tx() as conn:
+        conn.execute("UPDATE workout SET ended_at = started_at WHERE id = ?", (w1.id,))
+
+    w2 = workouts.start([])  # same `now` as w1 -> identical started_at
+    log_exercise(workouts, w2.id, "bench_press", [{"weight": 70.0, "reps": 3}])
+    with env.db.tx() as conn:
+        conn.execute("UPDATE workout SET ended_at = started_at WHERE id = ?", (w2.id,))
+
+    w3 = workouts.start([])
+    ex = workouts.add_exercise(w3.id, "bench_press")
+    assert [(s.weight, s.reps) for s in ex.sets] == [(70.0, 3)]
+
+
 def test_add_set_copies_previous_values(workouts):
     w = workouts.start([])
     ex = workouts.add_exercise(w.id, "bench_press")
