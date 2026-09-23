@@ -59,6 +59,15 @@ def test_in_progress_workout_listed(svc):
     assert entry.summary == "1 exercise · in progress"
 
 
+def test_reopened_workout_not_in_progress(svc, now):
+    workouts, _, calendar = svc
+    wid = finished(workouts, now, datetime(2026, 9, 21, 17, 0, tzinfo=UTC), ["bench_press"])
+    workouts.reopen(wid)
+    entry = calendar.entries(date(2026, 9, 21), date(2026, 9, 21), {"workout"})[0].entries[0]
+    assert entry.in_progress is False
+    assert entry.summary == "1 exercise · 52 min"
+
+
 def test_multiple_sessions_per_day(svc):
     _, selfcare, calendar = svc
     selfcare.log("skincare", ["am_routine"])

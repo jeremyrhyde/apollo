@@ -41,7 +41,7 @@ class CalendarService:
         with self.db.read() as conn:
             if "workout" in kinds:
                 rows = conn.execute(
-                    """SELECT w.id, w.local_date, w.started_at, w.ended_at,
+                    """SELECT w.id, w.local_date, w.started_at, w.ended_at, w.reopened_from,
                               (SELECT COUNT(*) FROM workout_exercise we WHERE we.workout_id = w.id) AS n
                          FROM workout w WHERE w.local_date BETWEEN ? AND ?""",
                     span,
@@ -49,8 +49,11 @@ class CalendarService:
                 focus = focus_for(conn, [r["id"] for r in rows])
                 for r in rows:
                     title = " · ".join(g.title() for g in focus[r["id"]]) or "Workout"
-                    if r["ended_at"]:
-                        minutes = round((from_iso(r["ended_at"]) - from_iso(r["started_at"])).total_seconds() / 60)
+                    # A reopened workout is being edited, not in progress: keep
+                    # showing the duration it was finished with.
+                    ended = r["ended_at"] or r["reopened_from"]
+                    if ended:
+                        minutes = round((from_iso(ended) - from_iso(r["started_at"])).total_seconds() / 60)
                         summary = f"{_plural(r['n'], 'exercise')} · {minutes} min"
                     else:
                         summary = f"{_plural(r['n'], 'exercise')} · in progress"
@@ -59,7 +62,7 @@ class CalendarService:
                             r["started_at"],
                             CalendarEntry(
                                 kind="workout", id=r["id"], title=title, summary=summary,
-                                in_progress=r["ended_at"] is None,
+                                in_progress=ended is None,
                             ),
                         )
                     )
