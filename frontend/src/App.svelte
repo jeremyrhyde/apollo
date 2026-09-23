@@ -3,6 +3,7 @@
   import TabBar from './components/TabBar.svelte';
   import Toasts from './components/Toast.svelte';
   import { app, loadApp, refreshToday } from './lib/app.svelte';
+  import { isValidISODate } from './lib/dates';
   import { initRouter, navigate, router } from './lib/router.svelte';
   import CalendarScreen from './screens/calendar/CalendarScreen.svelte';
   import DayScreen from './screens/calendar/DayScreen.svelte';
@@ -58,23 +59,36 @@
   function matchRoute(currentTab: string, segments: string[]): Screen | null {
     if (currentTab === 'calendar') {
       if (segments.length === 1) return { kind: 'calendar' };
-      if (segments[1] === 'day' && segments[2]) return { kind: 'day', date: segments[2] };
+      if (segments.length === 3 && segments[1] === 'day' && isValidISODate(segments[2])) {
+        return { kind: 'day', date: segments[2] };
+      }
       return null;
     }
     if (currentTab === 'workouts') {
       if (segments.length === 1) return { kind: 'workouts-hub' };
-      if (segments[1] === 'active') return { kind: 'workouts-active' };
-      if (segments[1] === 'history') return { kind: 'workouts-history' };
-      const id = numeric(segments[1]);
-      if (segments.length === 2 && id !== null) return { kind: 'workout-detail', id };
+      if (segments.length === 2 && segments[1] === 'active') return { kind: 'workouts-active' };
+      if (segments.length === 2 && segments[1] === 'history') return { kind: 'workouts-history' };
+      if (segments.length === 2) {
+        const id = numeric(segments[1]);
+        if (id !== null) return { kind: 'workout-detail', id };
+      }
       return null;
     }
     if (currentTab === 'selfcare') {
       if (segments.length === 1) return { kind: 'selfcare-hub' };
-      if (segments[1] === 'log') return { kind: 'selfcare-log', id: numeric(segments[2]) ?? undefined };
-      if (segments[1] === 'history') return { kind: 'selfcare-history' };
-      const id = numeric(segments[1]);
-      if (segments.length === 2 && id !== null) return { kind: 'selfcare-detail', id };
+      if (segments[1] === 'log') {
+        if (segments.length === 2) return { kind: 'selfcare-log' };
+        if (segments.length === 3) {
+          const id = numeric(segments[2]);
+          return id !== null ? { kind: 'selfcare-log', id } : null;
+        }
+        return null;
+      }
+      if (segments.length === 2 && segments[1] === 'history') return { kind: 'selfcare-history' };
+      if (segments.length === 2) {
+        const id = numeric(segments[1]);
+        if (id !== null) return { kind: 'selfcare-detail', id };
+      }
       return null;
     }
     if (currentTab === 'settings') {

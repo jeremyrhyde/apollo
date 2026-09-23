@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addDays, addMonths, dayLabel, diffDays, longDate, monthGrid, monthLabel,
+  addDays, addMonths, dayLabel, diffDays, isValidISODate, longDate, monthGrid, monthLabel,
   rangeFor, shortDate, startOfWeek, weekdayIndex, weekdayLabels, yearRows,
 } from './dates';
 
@@ -50,5 +50,14 @@ describe('dates', () => {
     expect(shortDate('2026-09-22')).toBe('Sep 22');
     expect(longDate('2026-09-22')).toBe('Tuesday, September 22');
     expect(dayLabel('2026-09-22')).toBe('Tue 22');
+  });
+
+  it('validates YYYY-MM-DD dates', () => {
+    expect(isValidISODate('2026-09-22')).toBe(true);
+    expect(isValidISODate('2024-02-29')).toBe(true); // leap day
+    expect(isValidISODate('2024-02-30')).toBe(false); // rolls over to March
+    expect(isValidISODate('2026-13-01')).toBe(false);
+    expect(isValidISODate('2026-9-22')).toBe(false);
+    expect(isValidISODate('abc')).toBe(false);
   });
 });

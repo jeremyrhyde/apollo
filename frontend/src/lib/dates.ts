@@ -18,6 +18,13 @@ export function toISO(d: Date): ISODate {
   return d.toISOString().slice(0, 10);
 }
 
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** True for a real calendar date in 'YYYY-MM-DD' form (rejects e.g. '2024-02-30'). */
+export function isValidISODate(d: string): d is ISODate {
+  return ISO_DATE_RE.test(d) && toISO(parseISO(d)) === d;
+}
+
 export function addDays(d: ISODate, n: number): ISODate {
   return toISO(new Date(parseISO(d).getTime() + n * DAY_MS));
 }
