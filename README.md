@@ -55,9 +55,9 @@ core/                 app framework: api.py now; events, websocket, state later
 schemas/              pydantic models
 services/             Apollo's domain logic
 tests/                pytest (+ pytest-asyncio, asyncio_mode=auto)
-web/                  index.html + app.js (Alpine.js) + style.css (tokens)
-web/kiosk/            Chromium kiosk launcher + its systemd unit
-deploy/               systemd unit, launchd plist, headless-X boot files
+config/               apollo.yaml, exercises.yaml, selfcare.yaml — the catalog
+frontend/             Svelte 5 + Vite app, built to frontend/dist and served at /ui
+deploy/               systemd unit, launchd plist, kiosk/ launcher, headless-X files
 scripts/              install-server.sh, install-kiosk.sh
 docs/                 dated specs and plans
 ```

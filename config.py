@@ -2,8 +2,10 @@
 
 Field names are uppercase to match environment variables — setting `PORT=9000`
 overrides the default. Add every new knob here (and to `.env.example`) rather
-than reading `os.environ` at the call site, so settings stay discoverable in
-one place.
+than reading `os.environ` at the call site.
+
+Domain configuration (exercises, self-care types, colors, timezone) lives in
+the YAML files under CONFIG_DIR, not here; these are deployment settings.
 """
 
 from __future__ import annotations
@@ -17,8 +19,9 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     LOG_LEVEL: str = "info"
-    WEB_DIR: str = "./web"
+    WEB_DIR: str = "./frontend/dist"
     DB_PATH: str = "./apollo.db"
+    CONFIG_DIR: str = "./config"
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"

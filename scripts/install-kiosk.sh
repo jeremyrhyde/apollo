@@ -74,9 +74,9 @@ fi
 # 1. Install apollo-kiosk.service.
 echo
 echo "[1/4] writing apollo-kiosk.service..."
-render_unit "$APOLLO_HOME/web/kiosk/apollo-kiosk.service" \
+render_unit "$APOLLO_HOME/deploy/kiosk/apollo-kiosk.service" \
             "$SYSTEMD_USER_DIR/apollo-kiosk.service"
-chmod +x "$APOLLO_HOME/web/kiosk/start-kiosk.sh"
+chmod +x "$APOLLO_HOME/deploy/kiosk/start-kiosk.sh"
 
 # 2. Install kiosk dependencies (chromium + unclutter, plus X stack if headless).
 echo
