@@ -3,14 +3,16 @@
 // sent one at a time, so the server ends on the last edit; only the newest
 // request's outcome touches the UI, so an older response (or an older
 // failure's rollback) never snaps a field back over a newer edit.
-// On success the newest response is shown; if the newest request fails, the
-// last value the server confirmed is shown instead (a rollback) and `fail`
-// is called — once per burst, since superseded failures are rolled into it.
+// When the queue for an id drains, the newest response is shown — or, if the
+// newest request failed, the last value the server confirmed (a rollback).
+// If any request in that burst failed, `fail` is then called once with the
+// latest error: a superseded failure still loses its edit, so it's never silent.
 
 export class PatchQueue<T> {
   private tails = new Map<number, Promise<void>>();
   private latest = new Map<number, number>();
   private confirmed = new Map<number, T>();
+  private errors = new Map<number, unknown>();
 
   /**
    * `before` is the record as shown before this edit was applied — the
@@ -21,19 +23,19 @@ export class PatchQueue<T> {
     const seq = (this.latest.get(id) ?? 0) + 1;
     this.latest.set(id, seq);
     const run = (this.tails.get(id) ?? Promise.resolve()).then(async () => {
-      let failed = false;
-      let error: unknown;
       try {
         this.confirmed.set(id, await send());
       } catch (e) {
-        failed = true;
-        error = e;
+        this.errors.set(id, e);
       }
       if (this.latest.get(id) !== seq) return; // a newer edit is queued; it decides what shows
       const value = this.confirmed.get(id)!;
+      const failed = this.errors.has(id);
+      const error = this.errors.get(id);
       this.tails.delete(id);
       this.latest.delete(id);
       this.confirmed.delete(id);
+      this.errors.delete(id);
       try {
         show(value);
       } finally {

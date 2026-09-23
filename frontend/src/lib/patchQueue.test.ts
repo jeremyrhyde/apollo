@@ -70,7 +70,7 @@ describe('PatchQueue', () => {
     expect(shown).toEqual([{ weight: 105 }]);
   });
 
-  it('lets a later success override an earlier failure without a rollback or a report', async () => {
+  it('shows the server copy and still reports once when an earlier patch fails and a later one succeeds', async () => {
     const q = new PatchQueue<Row>();
     const shown: Row[] = [];
     const errors: unknown[] = [];
@@ -79,7 +79,25 @@ describe('PatchQueue', () => {
       q.run(1, { weight: 105 }, async () => ({ weight: 110 }), (v) => shown.push(v), (e) => errors.push(e)),
     ]);
     expect(shown).toEqual([{ weight: 110 }]);
+    expect(errors).toHaveLength(1);
+  });
+
+  it('reports nothing when every patch in a burst succeeds', async () => {
+    const q = new PatchQueue<Row>();
+    const errors: unknown[] = [];
+    await Promise.all([
+      q.run(1, { weight: 100 }, async () => ({ weight: 105 }), () => {}, (e) => errors.push(e)),
+      q.run(1, { weight: 105 }, async () => ({ weight: 110 }), () => {}, (e) => errors.push(e)),
+    ]);
     expect(errors).toEqual([]);
+  });
+
+  it('forgets a failure once its burst has been reported', async () => {
+    const q = new PatchQueue<Row>();
+    const errors: unknown[] = [];
+    await q.run(1, { weight: 100 }, () => Promise.reject(new Error('x')), () => {}, (e) => errors.push(e));
+    await q.run(1, { weight: 100 }, async () => ({ weight: 105 }), () => {}, (e) => errors.push(e));
+    expect(errors).toHaveLength(1);
   });
 
   it('settled() resolves while and after a request rejects', async () => {

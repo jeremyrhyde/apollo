@@ -158,7 +158,8 @@
   }
 
   // Optimistic: show the change now; PatchQueue saves edits to a set in order
-  // and only lets the newest one's response (or rollback + toast) through.
+  // and only lets the newest one's response (or rollback) through, with one
+  // toast if any save in the burst failed.
   function patchSet(set: WorkoutSet, patch: SetPatch): void {
     const before = $state.snapshot(set);
     Object.assign(set, patch);
