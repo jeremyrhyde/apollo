@@ -1,7 +1,55 @@
 <script lang="ts">
-  // Stub — replaced by its screen task.
-  let props: Record<string, unknown> = $props();
+  import BackBar from '../../components/BackBar.svelte';
+  import SessionCard from '../../components/SessionCard.svelte';
+  import { api } from '../../lib/api';
+  import { app } from '../../lib/app.svelte';
+  import { longDate } from '../../lib/dates';
+  import { openEntry } from '../../lib/entries';
+  import { navigate } from '../../lib/router.svelte';
+  import { toastError } from '../../lib/toast.svelte';
+  import type { CalendarEntry, Kind } from '../../lib/types';
+
+  let { date, kind }: { date: string; kind: string } = $props();
+
+  const kinds: Kind[] = $derived(kind === 'workout' || kind === 'selfcare' ? [kind] : ['workout', 'selfcare']);
+  let entries: CalendarEntry[] = $state([]);
+  let loaded = $state(false);
+
+  $effect(() => {
+    const wanted = kinds;
+    let live = true;
+    api
+      .calendar(date, date, wanted)
+      .then((r) => {
+        if (live) {
+          entries = r[0]?.entries ?? [];
+          loaded = true;
+        }
+      })
+      .catch(toastError);
+    return () => {
+      live = false;
+    };
+  });
 </script>
 
-<h1>DayScreen</h1>
-<pre class="muted">{JSON.stringify(props)}</pre>
+<BackBar title={longDate(date)} fallback={['calendar']} />
+
+{#if loaded && entries.length === 0}
+  <p class="muted">Nothing logged on this day.</p>
+{/if}
+
+<div class="stack">
+  {#each entries as e (`${e.kind}-${e.id}`)}
+    <SessionCard
+      kind={e.kind}
+      title={e.title}
+      subtitle={e.summary}
+      meta={e.in_progress ? 'in progress' : undefined}
+      onclick={() => openEntry(e)} />
+  {/each}
+</div>
+
+{#if date <= app.today}
+  <button class="btn block" onclick={() => navigate(['selfcare', 'log'], { date })}>Log skincare for this day</button>
+{/if}
