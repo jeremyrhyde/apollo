@@ -213,7 +213,7 @@ class WorkoutService:
                 WHERE s.done = 1 AND s.workout_exercise_id = (
                       SELECT we.id FROM workout_exercise we JOIN workout w ON w.id = we.workout_id
                        WHERE we.exercise_key = ? AND w.ended_at IS NOT NULL
-                       ORDER BY w.started_at DESC, we.position DESC, w.id DESC LIMIT 1)
+                       ORDER BY w.started_at DESC, w.id DESC, we.position DESC LIMIT 1)
                 ORDER BY s.position""",
             (key,),
         ).fetchall()

@@ -85,7 +85,11 @@ def test_prefill_ignores_the_open_workout(workouts):
 
 def test_prefill_prefers_the_newer_workout_when_started_at_ties(workouts, env):
     # finish() doesn't exist yet (Task 10), so mark workouts finished directly.
+    # bench_press sits at a *higher* position in the older workout than in the
+    # newer one, so a tie-break that compares position before workout id would
+    # (wrongly) still pick the older workout.
     w1 = workouts.start([])
+    log_exercise(workouts, w1.id, "squat", [{"weight": 80.0, "reps": 5}])
     log_exercise(workouts, w1.id, "bench_press", [{"weight": 40.0, "reps": 10}])
     with env.db.tx() as conn:
         conn.execute("UPDATE workout SET ended_at = started_at WHERE id = ?", (w1.id,))
