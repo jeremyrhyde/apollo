@@ -68,6 +68,14 @@ export function navigate(
   apply(parseHash(hash), 'forward', !opts.replace);
 }
 
+/** Push `via` as a history entry without showing it, then go to `path` —
+ *  so Back from `path` lands on `via`. */
+export function navigateVia(via: string[], path: string[]): void {
+  index += 1;
+  history.pushState({ idx: index }, '', buildHash(via));
+  navigate(path);
+}
+
 /** In-app back: browser history when there is some, else a sensible parent. */
 export function goBack(fallback: string[]): void {
   if (index > 0) history.back();

@@ -21,10 +21,14 @@
   $effect(() => {
     workout = null;
     error = null;
+    let live = true;
     api
       .workout(id)
-      .then((w) => (workout = w))
+      .then((w) => {
+        if (live) workout = w;
+      })
       .catch((e: unknown) => {
+        if (!live) return;
         // A 404 means this workout no longer exists (deleted, or emptied by
         // a Save with nothing ticked) — nothing to show or retry.
         if (e instanceof ApiError && e.status === 404) {
@@ -34,6 +38,9 @@
         error = e instanceof Error ? e.message : String(e);
         toastError(e);
       });
+    return () => {
+      live = false;
+    };
   });
 
   async function edit(): Promise<void> {

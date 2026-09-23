@@ -7,7 +7,9 @@ timezone: America/Los_Angeles
 day_start_hour: 4
 
 # Per-kind colors used by the calendar and chips. Keep them distinguishable
-# for colour-blind viewers and readable on dark and light themes.
+# for colour-blind viewers and readable on dark and light themes. Text drawn
+# on these fills (ticked sets, selected chips) is dark ink, so pick light or
+# mid-tone colors.
 colors:
   workout: "#4ade80"
   selfcare: "#60a5fa"

@@ -26,7 +26,8 @@
   --color-on-accent: #0d1117;
   /* Text/icons on a --color-workout / --color-selfcare fill. Dark ink in both
      themes: the default kind colours are light-to-mid tones (7:1+ against
-     this), where white would read at ~2:1. */
+     this), where white would read at ~2:1. So colours configured in
+     config/apollo.yaml should stay light or mid-tone. */
   --color-on-kind: #0d1117;
 
   --radius-sm: 6px;

@@ -140,7 +140,15 @@
     }
   }
 
-  async function finish(): Promise<void> {
+  // Back while editing: set edits are already saved, so leave by saving —
+  // unless nothing is ticked, where saving would delete the workout; that
+  // goes through the sheet's warning instead.
+  function backFromEdit(): void {
+    if (doneCount === 0) confirmFinish = true;
+    else void finish(true);
+  }
+
+  async function finish(leaving = false): Promise<void> {
     if (!workout || busy) return;
     busy = true;
     try {
@@ -162,6 +170,8 @@
       }
     } catch (e) {
       toastError(e);
+      // Offline Back mustn't strand the user; the edits themselves are saved.
+      if (leaving) goBack(['workouts', String(workout.id)]);
     } finally {
       busy = false;
     }
@@ -185,9 +195,7 @@
   }
 </script>
 
-<!-- While editing, set changes are already saved live, so Back is Save: it
-     finishes the workout again instead of leaving it reopened. -->
-<BackBar title={editMode ? 'Edit workout' : 'Workout'} fallback={['workouts']} onback={editMode ? finish : undefined}>
+<BackBar title={editMode ? 'Edit workout' : 'Workout'} fallback={['workouts']} onback={editMode ? backFromEdit : undefined}>
   {#snippet actions()}
     {#if workout && !editMode}
       <button class="icon-btn" aria-label="Discard workout" onclick={() => (confirmDiscard = true)}><Icon name="trash" /></button>
@@ -249,13 +257,16 @@
   <ConfirmSheet
     title={editMode ? 'Save changes?' : 'Finish workout?'}
     confirmLabel={editMode ? 'Save' : 'Finish'}
+    danger={doneCount === 0}
     {busy}
-    onconfirm={finish}
+    onconfirm={() => finish()}
     oncancel={() => (confirmFinish = false)}>
     <p>
       {plural(workout.exercises.length, 'exercise')} · {plural(doneCount, 'set')} done{#if !editMode}&nbsp;· {formatDuration(elapsed)}{/if}
     </p>
-    {#if undoneCount > 0}
+    {#if doneCount === 0}
+      <p class="warn-text">No sets are ticked — {editMode ? 'saving' : 'finishing'} deletes this workout.</p>
+    {:else if undoneCount > 0}
       <p class="muted">{plural(undoneCount, 'unticked set')} will be dropped.</p>
     {/if}
   </ConfirmSheet>
@@ -268,6 +279,7 @@
 {/if}
 
 <style>
+  .warn-text { color: var(--color-danger); }
   .elapsed { display: flex; align-items: center; gap: var(--space-1); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
   .ex-head { display: flex; justify-content: space-between; align-items: center; margin-right: calc(-1 * var(--space-2)); }
   .bottom {

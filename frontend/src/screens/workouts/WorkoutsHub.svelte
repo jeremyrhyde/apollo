@@ -7,7 +7,7 @@
   import { app } from '../../lib/app.svelte';
   import { longDate, monthLabel, rangeFor } from '../../lib/dates';
   import { formatDuration, plural } from '../../lib/format';
-  import { navigate } from '../../lib/router.svelte';
+  import { navigate, navigateVia } from '../../lib/router.svelte';
   import { clearSetTimers } from '../../lib/timers';
   import { toast, toastError } from '../../lib/toast.svelte';
   import type { CalendarEntry, Workout } from '../../lib/types';
@@ -17,6 +17,8 @@
   let days: Record<string, CalendarEntry[]> = $state({});
   let busy = $state(false);
   let confirmDiscard = $state(false);
+  let confirmSaveEmpty = $state(false);
+  let calendarRev = $state(0); // bumped when a finish or discard changes the month
   let now = $state(Date.now());
 
   const range = $derived(rangeFor('month', app.today, app.settings!.week_start));
@@ -31,10 +33,17 @@
 
   $effect(() => {
     const { from, to } = range;
+    void calendarRev;
+    let live = true;
     api
       .calendar(from, to, ['workout'])
-      .then((r) => (days = Object.fromEntries(r.map((d) => [d.date, d.entries]))))
+      .then((r) => {
+        if (live) days = Object.fromEntries(r.map((d) => [d.date, d.entries]));
+      })
       .catch(toastError);
+    return () => {
+      live = false;
+    };
   });
 
   $effect(() => {
@@ -68,6 +77,7 @@
       const result = await api.finishWorkout(open.id, true);
       toast(result.deleted ? 'Nothing was ticked — workout discarded' : 'Workout finished');
       open = null;
+      calendarRev += 1;
     } catch (e) {
       toastError(e);
     } finally {
@@ -76,7 +86,14 @@
   }
 
   // A reopened past workout left open (e.g. Safari back out of Edit): Save
-  // finishes it again, as the edit screen's Save does.
+  // finishes it again, as the edit screen's Save does. With nothing ticked
+  // that deletes it, so ask first.
+  function askSaveReopened(): void {
+    if (!open) return;
+    if (open.exercises.some((e) => e.sets.some((s) => s.done))) void saveReopened();
+    else confirmSaveEmpty = true;
+  }
+
   async function saveReopened(): Promise<void> {
     if (!open || busy) return;
     busy = true;
@@ -84,6 +101,8 @@
       const result = await api.finishWorkout(open.id);
       clearSetTimers(open.exercises.flatMap((e) => e.sets));
       open = null;
+      confirmSaveEmpty = false;
+      calendarRev += 1;
       if (result.deleted || !result.workout) {
         toast('Nothing was ticked — workout discarded');
       } else {
@@ -105,6 +124,7 @@
       clearSetTimers(open.exercises.flatMap((e) => e.sets));
       toast('Workout discarded');
       open = null;
+      calendarRev += 1;
       confirmDiscard = false;
     } catch (e) {
       toastError(e);
@@ -112,6 +132,7 @@
       busy = false;
     }
   }
+
 </script>
 
 <header class="page-head"><h1>Workouts</h1></header>
@@ -123,8 +144,8 @@
     <section class="banner stack">
       <p>Editing workout from {longDate(open.local_date)}.</p>
       <div class="row">
-        <button class="btn primary" disabled={busy} onclick={saveReopened}>Save</button>
-        <button class="btn" disabled={busy} onclick={() => navigate(['workouts', 'active'])}>Keep editing</button>
+        <button class="btn primary" disabled={busy} onclick={askSaveReopened}>Save</button>
+        <button class="btn" disabled={busy} onclick={() => open && navigateVia(['workouts', String(open.id)], ['workouts', 'active'])}>Keep editing</button>
       </div>
     </section>
   {:else if open?.stale}
@@ -158,6 +179,12 @@
   <p class="muted">Coming soon — strength progress, distance totals and personal bests.</p>
 </section>
 
+{#if confirmSaveEmpty}
+  <ConfirmSheet title="Save changes?" confirmLabel="Save" danger {busy} onconfirm={saveReopened} oncancel={() => (confirmSaveEmpty = false)}>
+    <p class="warn-text">No sets are ticked — saving deletes this workout.</p>
+  </ConfirmSheet>
+{/if}
+
 {#if confirmDiscard}
   <ConfirmSheet title="Discard this workout?" confirmLabel="Discard" danger {busy} onconfirm={discard} oncancel={() => (confirmDiscard = false)}>
     <p class="muted">Everything logged in it will be deleted.</p>
@@ -168,4 +195,5 @@
   .resume { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 56px; cursor: pointer; color: var(--color-text); text-align: left; }
   .between { justify-content: space-between; }
   .stats { opacity: 0.7; }
+  .warn-text { color: var(--color-danger); }
 </style>
