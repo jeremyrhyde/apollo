@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from core.state import Database
+from core.state import MIGRATIONS_DIR, Database
 
 TABLES = {
     "workout", "workout_exercise", "workout_exercise_group", "workout_set",
@@ -67,3 +67,43 @@ def test_rows_are_mappings(db):
         _workout(conn)
     row = db.query_one("SELECT local_date FROM workout")
     assert row["local_date"] == "2026-09-22"
+
+
+def test_failed_migration_leaves_no_partial_schema(tmp_path):
+    mig_dir = tmp_path / "migrations"
+    mig_dir.mkdir()
+    (mig_dir / "001_initial.sql").write_text((MIGRATIONS_DIR / "001_initial.sql").read_text())
+    (mig_dir / "002_bad.sql").write_text("CREATE TABLE broken (id INTEGER); NOT VALID SQL;")
+    database = Database(str(tmp_path / "bad.db"))
+    try:
+        with pytest.raises(sqlite3.Error):
+            database.migrate(mig_dir)
+        # 001 still applied cleanly; 002 recorded nothing and left no table.
+        assert database.query_one("SELECT COUNT(*) FROM schema_migrations")[0] == 1
+        assert database.query_one("SELECT 1 FROM schema_migrations WHERE version=2") is None
+        names = {r[0] for r in database.query("SELECT name FROM sqlite_master WHERE type='table'")}
+        assert "broken" not in names
+    finally:
+        database.close()
+
+
+def test_migrate_bad_filename_raises(tmp_path):
+    mig_dir = tmp_path / "migrations"
+    mig_dir.mkdir()
+    (mig_dir / "not_a_migration.sql").write_text("SELECT 1;")
+    database = Database(str(tmp_path / "badname.db"))
+    try:
+        with pytest.raises(RuntimeError):
+            database.migrate(mig_dir)
+    finally:
+        database.close()
+
+
+def test_nested_tx_raises_and_rolls_back_outer(db):
+    with pytest.raises(sqlite3.OperationalError):
+        with db.tx() as conn:
+            _workout(conn)
+            with db.tx():
+                pass
+    assert db.query_one("SELECT COUNT(*) FROM workout")[0] == 0
+    assert db._conn.in_transaction is False

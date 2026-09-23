@@ -42,10 +42,22 @@ class Database:
             try:
                 yield self._conn
             except BaseException:
-                self._conn.execute("ROLLBACK")
+                # sqlite can auto-rollback on its own (SQLITE_FULL, an
+                # interrupt) before we get here; only issue ROLLBACK if a
+                # transaction is still open, or we'd mask the real error
+                # with "cannot rollback - no transaction is active".
+                if self._conn.in_transaction:
+                    self._conn.execute("ROLLBACK")
                 raise
             else:
-                self._conn.execute("COMMIT")
+                try:
+                    self._conn.execute("COMMIT")
+                except BaseException:
+                    # If COMMIT itself fails, roll back so the long-lived
+                    # connection isn't left stuck inside a transaction.
+                    if self._conn.in_transaction:
+                        self._conn.execute("ROLLBACK")
+                    raise
 
     @contextmanager
     def read(self) -> Iterator[sqlite3.Connection]:
@@ -61,7 +73,14 @@ class Database:
             return self._conn.execute(sql, params).fetchone()
 
     def migrate(self, migrations_dir: Path = MIGRATIONS_DIR) -> int:
-        """Apply unapplied NNN_name.sql files in order; return the schema version."""
+        """Apply unapplied NNN_name.sql files in order; return the schema version.
+
+        Migration files must not contain BEGIN/COMMIT/ROLLBACK — each file is
+        wrapped in its own transaction here, and a failure leaves no partial
+        schema and no row in schema_migrations for it. `PRAGMA foreign_keys`
+        has no effect inside a migration; it's a per-connection setting
+        applied once at startup, not something a migration script can toggle.
+        """
         with self._lock:
             self._conn.execute(
                 "CREATE TABLE IF NOT EXISTS schema_migrations "
