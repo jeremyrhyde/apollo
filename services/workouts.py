@@ -74,12 +74,15 @@ class WorkoutService:
 
     def get_open(self) -> WorkoutOut | None:
         with self.db.read() as conn:
-            row = conn.execute("SELECT id FROM workout WHERE ended_at IS NULL").fetchone()
+            row = conn.execute(
+                "SELECT id, started_at, updated_at FROM workout WHERE ended_at IS NULL"
+            ).fetchone()
             if row is None:
                 return None
             workout = self._load(conn, row["id"])
-        age_h = (self.clock.now() - from_iso(workout.started_at)).total_seconds() / 3600
-        return workout.model_copy(update={"stale": age_h > self.stale_hours})
+        last_activity = max(from_iso(row["started_at"]), from_iso(row["updated_at"]))
+        idle_h = (self.clock.now() - last_activity).total_seconds() / 3600
+        return workout.model_copy(update={"stale": idle_h > self.stale_hours})
 
     # ------------------------------------------------------------------ logging
 

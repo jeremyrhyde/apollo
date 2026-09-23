@@ -279,3 +279,21 @@ def test_get_open_flags_stale(workouts, now):
     assert workouts.get_open().stale is False
     now.advance(hours=13)
     assert workouts.get_open().stale is True
+
+
+def test_get_open_stale_resets_on_activity(workouts, now):
+    w = workouts.start([])
+    now.advance(hours=13)
+    assert workouts.get_open().stale is True
+    workouts.add_exercise(w.id, "bench_press")  # activity touches updated_at
+    assert workouts.get_open().stale is False
+
+
+def test_reopened_old_workout_is_not_stale(workouts, now):
+    w = workouts.start([])
+    log_exercise(workouts, w.id, "pull_up", [{"reps": 10}])
+    now.advance(minutes=45)
+    workouts.finish(w.id)
+    now.advance(hours=40)  # long after both started_at and the finish
+    workouts.reopen(w.id)
+    assert workouts.get_open().stale is False

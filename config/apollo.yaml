@@ -20,5 +20,6 @@ settings_defaults:
   distance_unit: mi         # mi | km
   history_range: 1M         # 1W | 1M | 1Y
 
-# An open workout older than this is flagged so you can finish or discard it.
+# An open workout with no activity for this long is flagged so you can finish
+# or discard it. Reopening or editing a workout counts as activity.
 stale_workout_hours: 12
