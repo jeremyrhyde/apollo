@@ -23,9 +23,15 @@
     const onVisible = () => {
       if (document.visibilityState === 'visible') void refreshToday();
     };
+    const onFocus = () => void refreshToday();
     document.addEventListener('visibilitychange', onVisible);
+    addEventListener('focus', onFocus);
+    // A kiosk or a tab left open in front of you never changes visibility.
+    const todayTimer = setInterval(() => void refreshToday(), 5 * 60 * 1000);
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
+      removeEventListener('focus', onFocus);
+      clearInterval(todayTimer);
       stopRouter();
     };
   });

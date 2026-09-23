@@ -19,9 +19,14 @@
   const categories = $derived(app.catalog!.selfcare);
   let categoryKey = $state(app.catalog!.selfcare[0]?.key ?? '');
   let selected: string[] = $state([]);
-  let date = $state(
-    untrack(() => (initialDate && isValidISODate(initialDate) && initialDate <= app.today ? initialDate : app.today)),
+  const presetDate = untrack(() =>
+    initialDate && isValidISODate(initialDate) && initialDate <= app.today ? initialDate : null,
   );
+  let date = $state(untrack(() => presetDate ?? app.today));
+  // Create mode sends `date` only when it was chosen (a valid `?date=` or the
+  // picker); otherwise the server's today applies at save time, which stays
+  // right in a tab left open past midnight.
+  let datePicked = $state(presetDate !== null);
   let notes = $state('');
   let status: Record<string, DueStatus> = $state({});
   let busy = $state(false);
@@ -32,6 +37,12 @@
   let loaded = $state(untrack(() => id === undefined));
   let loadError: string | null = $state(null);
   let original: { types: string[]; date: string; notes: string } | null = null;
+
+  // Until a date is picked, the field tracks today (refreshed on focus and
+  // every few minutes by App.svelte).
+  $effect(() => {
+    if (id === undefined && !datePicked) date = app.today;
+  });
 
   const category = $derived(categories.find((c) => c.key === categoryKey));
   const dateOk = $derived(date !== '' && date <= app.today);
@@ -75,7 +86,7 @@
     busy = true;
     try {
       if (id === undefined) {
-        await api.logSelfcare({ category: categoryKey, types: selected, date, notes: notes || null });
+        await api.logSelfcare({ category: categoryKey, types: selected, date: datePicked ? date : undefined, notes: notes || null });
         toast('Logged');
         navigate(['selfcare'], {}, { replace: true });
       } else {
@@ -132,7 +143,7 @@
 
   <label class="field">
     <span>Date</span>
-    <input class="input" type="date" bind:value={date} max={app.today} />
+    <input class="input" type="date" bind:value={date} max={app.today} oninput={() => (datePicked = true)} />
   </label>
 
   {#if category}
