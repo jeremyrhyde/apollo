@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dueText, formatDuration, formatMinutes, heatLevel, parseDuration, relativeDays, titleCase } from './format';
+import { dueText, formatDuration, formatMinutes, heatLevel, parseDecimal, parseDuration, relativeDays, titleCase } from './format';
 import type { DueItem } from './types';
 
 const due = (over: Partial<DueItem>): DueItem => ({
@@ -22,9 +22,19 @@ describe('format', () => {
     expect(parseDuration('1:02:03')).toBe(3723);
     expect(parseDuration('45')).toBe(45);
     expect(parseDuration('30', 'minutes')).toBe(1800);
+    expect(parseDuration('1,5', 'minutes')).toBe(90);
     expect(parseDuration('')).toBeNull();
     expect(parseDuration('1:75')).toBeNull();
     expect(parseDuration('abc')).toBeNull();
+  });
+
+  it('parses comma-tolerant decimals', () => {
+    expect(parseDecimal('135')).toBe(135);
+    expect(parseDecimal('12,5')).toBe(12.5);
+    expect(parseDecimal('12.5')).toBe(12.5);
+    expect(parseDecimal('')).toBeNull();
+    expect(parseDecimal('-1')).toBeNull();
+    expect(parseDecimal('abc')).toBeNull();
   });
 
   it('describes relative days', () => {

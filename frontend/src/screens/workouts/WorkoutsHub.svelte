@@ -11,6 +11,7 @@
   import type { CalendarEntry, Workout } from '../../lib/types';
 
   let open: Workout | null = $state(null);
+  let loaded = $state(false);
   let days: Record<string, CalendarEntry[]> = $state({});
   let busy = $state(false);
   let confirmDiscard = $state(false);
@@ -19,7 +20,13 @@
   const range = $derived(rangeFor('month', app.today, app.settings!.week_start));
 
   $effect(() => {
-    api.openWorkout().then((w) => (open = w)).catch(toastError);
+    api
+      .openWorkout()
+      .then((w) => {
+        open = w;
+        loaded = true;
+      })
+      .catch(toastError);
   });
 
   $effect(() => {
@@ -42,24 +49,35 @@
       navigate(['workouts', 'active']);
     } catch (e) {
       toastError(e);
+      // A 409 usually means a workout was already open (another tab, a
+      // stale reload) — refetch so the hub shows it instead of a dead end.
+      try {
+        open = await api.openWorkout();
+      } catch (e2) {
+        toastError(e2);
+      }
     } finally {
       busy = false;
     }
   }
 
   async function finishStale(): Promise<void> {
-    if (!open) return;
+    if (!open || busy) return;
+    busy = true;
     try {
       const result = await api.finishWorkout(open.id, true);
       toast(result.deleted ? 'Nothing was ticked — workout discarded' : 'Workout finished');
       open = null;
     } catch (e) {
       toastError(e);
+    } finally {
+      busy = false;
     }
   }
 
   async function discard(): Promise<void> {
-    if (!open) return;
+    if (!open || busy) return;
+    busy = true;
     try {
       await api.deleteWorkout(open.id);
       toast('Workout discarded');
@@ -67,28 +85,32 @@
       confirmDiscard = false;
     } catch (e) {
       toastError(e);
+    } finally {
+      busy = false;
     }
   }
 </script>
 
 <header class="page-head"><h1>Workouts</h1></header>
 
-{#if open?.stale}
-  <section class="banner warn stack">
-    <p>A workout from {longDate(open.local_date)} is still open.</p>
-    <div class="row">
-      <button class="btn" onclick={finishStale}>Finish</button>
-      <button class="btn danger" onclick={() => (confirmDiscard = true)}>Discard</button>
-      <button class="btn" onclick={() => navigate(['workouts', 'active'])}>Keep going</button>
-    </div>
-  </section>
-{:else if open}
-  <button class="banner resume" onclick={() => navigate(['workouts', 'active'])}>
-    <span><strong>In progress</strong> · {plural(open.exercises.length, 'exercise')} · {formatDuration(Math.round((now - Date.parse(open.started_at)) / 1000))}</span>
-    <span class="row">Resume <Icon name="chevron-right" /></span>
-  </button>
-{:else}
-  <button class="btn primary big" disabled={busy} onclick={start}><Icon name="plus" /> Start workout</button>
+{#if loaded}
+  {#if open?.stale}
+    <section class="banner warn stack">
+      <p>A workout from {longDate(open.local_date)} is still open.</p>
+      <div class="row">
+        <button class="btn" disabled={busy} onclick={finishStale}>Finish</button>
+        <button class="btn danger" disabled={busy} onclick={() => (confirmDiscard = true)}>Discard</button>
+        <button class="btn" disabled={busy} onclick={() => navigate(['workouts', 'active'])}>Keep going</button>
+      </div>
+    </section>
+  {:else if open}
+    <button class="banner resume" onclick={() => navigate(['workouts', 'active'])}>
+      <span><strong>In progress</strong> · {plural(open.exercises.length, 'exercise')} · {formatDuration(Math.round((now - Date.parse(open.started_at)) / 1000))}</span>
+      <span class="row">Resume <Icon name="chevron-right" /></span>
+    </button>
+  {:else}
+    <button class="btn primary big" disabled={busy} onclick={start}><Icon name="plus" /> Start workout</button>
+  {/if}
 {/if}
 
 <button class="card" onclick={() => navigate(['calendar'], { kind: 'workout', view: 'month' })}>
@@ -104,7 +126,7 @@
 </section>
 
 {#if confirmDiscard}
-  <ConfirmSheet title="Discard this workout?" confirmLabel="Discard" danger onconfirm={discard} oncancel={() => (confirmDiscard = false)}>
+  <ConfirmSheet title="Discard this workout?" confirmLabel="Discard" danger {busy} onconfirm={discard} oncancel={() => (confirmDiscard = false)}>
     <p class="muted">Everything logged in it will be deleted.</p>
   </ConfirmSheet>
 {/if}

@@ -25,11 +25,24 @@ export function formatMinutes(seconds: number): string {
 }
 
 /**
+ * Parses a non-negative decimal typed into a numeric input, accepting ','
+ * as the decimal separator (some locales' iOS numeric keypads emit it in
+ * place of '.'). '' or anything else unparsable → null.
+ */
+export function parseDecimal(text: string): number | null {
+  const t = text.trim();
+  if (t === '') return null;
+  const value = Number(t.replace(',', '.'));
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+/**
  * "m:ss" / "h:mm:ss" → seconds. A bare number is seconds, or minutes when
  * `plain` is 'minutes' (runs are entered in minutes, planks in seconds).
+ * Accepts ',' as the decimal separator in the bare-number form.
  */
 export function parseDuration(text: string, plain: 'seconds' | 'minutes' = 'seconds'): number | null {
-  const t = text.trim();
+  const t = text.trim().replace(',', '.');
   if (t === '') return null;
   if (/^\d+(\.\d+)?$/.test(t)) {
     const n = Number(t);

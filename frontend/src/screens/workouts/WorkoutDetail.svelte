@@ -6,7 +6,7 @@
   import { app } from '../../lib/app.svelte';
   import { longDate } from '../../lib/dates';
   import { formatMinutes, titleCase } from '../../lib/format';
-  import { navigate } from '../../lib/router.svelte';
+  import { goBack, navigate } from '../../lib/router.svelte';
   import { toast, toastError } from '../../lib/toast.svelte';
   import type { Workout } from '../../lib/types';
 
@@ -37,7 +37,7 @@
     try {
       await api.deleteWorkout(id);
       toast('Workout deleted');
-      navigate(['workouts', 'history'], {}, { replace: true });
+      goBack(['workouts', 'history']);
     } catch (e) {
       toastError(e);
       busy = false;
