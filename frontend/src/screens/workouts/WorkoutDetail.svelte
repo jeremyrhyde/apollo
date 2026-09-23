@@ -2,29 +2,45 @@
   import BackBar from '../../components/BackBar.svelte';
   import ConfirmSheet from '../../components/ConfirmSheet.svelte';
   import SetRow from '../../components/SetRow.svelte';
-  import { api } from '../../lib/api';
+  import { api, ApiError } from '../../lib/api';
   import { app } from '../../lib/app.svelte';
   import { longDate } from '../../lib/dates';
   import { formatMinutes, titleCase } from '../../lib/format';
   import { goBack, navigate } from '../../lib/router.svelte';
+  import { clearSetTimers } from '../../lib/timers';
   import { toast, toastError } from '../../lib/toast.svelte';
   import type { Workout } from '../../lib/types';
 
   let { id }: { id: number } = $props();
 
   let workout: Workout | null = $state(null);
+  let error: string | null = $state(null);
   let confirmDelete = $state(false);
   let busy = $state(false);
 
   $effect(() => {
-    api.workout(id).then((w) => (workout = w)).catch(toastError);
+    workout = null;
+    error = null;
+    api
+      .workout(id)
+      .then((w) => (workout = w))
+      .catch((e: unknown) => {
+        // A 404 means this workout no longer exists (deleted, or emptied by
+        // a Save with nothing ticked) — nothing to show or retry.
+        if (e instanceof ApiError && e.status === 404) {
+          navigate(['workouts', 'history'], {}, { replace: true });
+          return;
+        }
+        error = e instanceof Error ? e.message : String(e);
+        toastError(e);
+      });
   });
 
   async function edit(): Promise<void> {
     busy = true;
     try {
       await api.reopenWorkout(id);
-      navigate(['workouts', 'active'], { edit: '1' });
+      navigate(['workouts', 'active']);
     } catch (e) {
       toastError(e);
     } finally {
@@ -36,6 +52,7 @@
     busy = true;
     try {
       await api.deleteWorkout(id);
+      if (workout) clearSetTimers(workout.exercises.flatMap((e) => e.sets));
       toast('Workout deleted');
       goBack(['workouts', 'history']);
     } catch (e) {
@@ -47,11 +64,17 @@
 
 <BackBar title={workout ? longDate(workout.local_date) : 'Workout'} fallback={['workouts', 'history']} />
 
-{#if workout}
+{#if error}
+  <p class="error">Couldn't load this workout: {error}</p>
+{:else if !workout}
+  <div class="center-state"><p class="muted">Loading…</p></div>
+{:else}
   <div class="row">
     {#each workout.focus as g (g)}<span class="chip">{titleCase(g)}</span>{/each}
     {#if workout.ended_at}
       <span class="muted">{formatMinutes((Date.parse(workout.ended_at) - Date.parse(workout.started_at)) / 1000)}</span>
+    {:else if workout.reopened}
+      <span class="muted">being edited</span>
     {:else}
       <span class="muted">in progress</span>
     {/if}
@@ -70,7 +93,11 @@
 
   <div class="actions">
     <button class="btn danger" disabled={busy} onclick={() => (confirmDelete = true)}>Delete</button>
-    <button class="btn primary" disabled={busy || !workout.ended_at} onclick={edit}>Edit</button>
+    {#if workout.reopened}
+      <button class="btn primary" onclick={() => navigate(['workouts', 'active'])}>Keep editing</button>
+    {:else}
+      <button class="btn primary" disabled={busy || !workout.ended_at} onclick={edit}>Edit</button>
+    {/if}
   </div>
 {/if}
 
@@ -81,5 +108,6 @@
 {/if}
 
 <style>
+  .error { color: var(--color-danger); }
   .actions { display: grid; grid-template-columns: 1fr 2fr; gap: var(--space-2); margin-top: var(--space-4); }
 </style>

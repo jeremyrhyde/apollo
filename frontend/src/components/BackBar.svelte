@@ -3,11 +3,19 @@
   import Icon from './Icon.svelte';
   import { goBack } from '../lib/router.svelte';
 
-  let { title, fallback, actions }: { title: string; fallback: string[]; actions?: Snippet } = $props();
+  interface Props {
+    title: string;
+    fallback: string[];
+    actions?: Snippet;
+    /** Replaces the default back navigation (the handler navigates itself). */
+    onback?: () => void | Promise<void>;
+  }
+
+  let { title, fallback, actions, onback }: Props = $props();
 </script>
 
 <header class="backbar">
-  <button class="icon-btn" onclick={() => goBack(fallback)} aria-label="Back">
+  <button class="icon-btn" onclick={() => (onback ? onback() : goBack(fallback))} aria-label="Back">
     <Icon name="chevron-left" size={26} />
   </button>
   <h1>{title}</h1>

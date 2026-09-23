@@ -123,7 +123,7 @@
       {:else if screen?.kind === 'workouts-hub'}
         <WorkoutsHub />
       {:else if screen?.kind === 'workouts-active'}
-        <ActiveWorkout editing={query.edit === '1'} />
+        <ActiveWorkout />
       {:else if screen?.kind === 'workouts-history'}
         <WorkoutHistory range={query.range} />
       {:else if screen?.kind === 'workout-detail'}

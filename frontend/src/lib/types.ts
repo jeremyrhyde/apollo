@@ -63,6 +63,8 @@ export interface Workout {
   focus: string[];
   exercises: WorkoutExercise[];
   stale: boolean;
+  /** A finished workout open again for editing; never `stale`. */
+  reopened: boolean;
 }
 
 export interface WorkoutSummary {

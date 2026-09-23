@@ -12,16 +12,14 @@
   import { formatDuration, plural } from '../../lib/format';
   import { dur } from '../../lib/motion';
   import { PatchQueue } from '../../lib/patchQueue';
-  import { navigate } from '../../lib/router.svelte';
+  import { goBack, navigate } from '../../lib/router.svelte';
+  import { clearSetTimers } from '../../lib/timers';
   import { toast, toastError } from '../../lib/toast.svelte';
   import type { SetPatch, Workout, WorkoutExercise, WorkoutSet } from '../../lib/types';
-
-  let { editing = false }: { editing?: boolean } = $props();
 
   let workout = $state<Workout | null>(null);
   let loaded = $state(false);
   let loadError: string | null = $state(null);
-  let editMode = $state(false);
   let picking = $state(false);
   let confirmFinish = $state(false);
   let confirmDiscard = $state(false);
@@ -31,45 +29,9 @@
 
   const sets = new PatchQueue<WorkoutSet>();
 
-  // A reopened workout looks like any open one to the API, and it can be
-  // resumed later from the hub or calendar without `?edit=1`. So entering
-  // with `?edit=1` marks it on this device, keyed by id and start time
-  // (SQLite reuses ids; a new workout never shares both).
-  const EDIT_KEY = 'apollo:editing-workout';
-  const editTag = (w: Workout) => `${w.id}@${w.started_at}`;
-
-  function readEditMark(w: Workout): boolean {
-    try {
-      return localStorage.getItem(EDIT_KEY) === editTag(w);
-    } catch {
-      return false;
-    }
-  }
-
-  function writeEditMark(w: Workout | null): void {
-    try {
-      if (w) localStorage.setItem(EDIT_KEY, editTag(w));
-      else localStorage.removeItem(EDIT_KEY);
-    } catch {
-      /* storage unavailable — the label falls back to Finish on resume */
-    }
-  }
-
-  // SetRow persists a running timer under this key; drop them once the sets
-  // can no longer be timed.
-  function clearTimers(list: WorkoutSet[]): void {
-    try {
-      for (const s of list) localStorage.removeItem(`apollo:set-timer:${s.id}`);
-    } catch {
-      /* storage unavailable */
-    }
-  }
-
-  function show(w: Workout | null): void {
-    workout = w;
-    editMode = !!w && (editing || readEditMark(w));
-    if (w && editMode) writeEditMark(w);
-  }
+  // A finished workout reopened from its detail page: the server keeps the
+  // flag, so edit mode survives a reload or a resume from the hub.
+  const editMode = $derived(!!workout?.reopened);
 
   // Cleared on unmount so a slow load can't write into a screen that's gone.
   let live = true;
@@ -79,7 +41,7 @@
     loaded = false;
     try {
       const w = await api.openWorkout();
-      if (live) show(w);
+      if (live) workout = w;
     } catch (e) {
       // Inline, not a toast: "No workout in progress" + Start would be a lie
       // here, and Start would 409 if one is in fact open.
@@ -110,7 +72,7 @@
     if (busy) return;
     busy = true;
     try {
-      show(await api.startWorkout());
+      workout = await api.startWorkout();
     } catch (e) {
       toastError(e);
     } finally {
@@ -140,7 +102,7 @@
     try {
       await sets.settled();
       await api.removeExercise(workout.id, ex.id);
-      clearTimers(ex.sets);
+      clearSetTimers(ex.sets);
     } catch (e) {
       workout.exercises.splice(i, 0, ex);
       toastError(e);
@@ -184,14 +146,18 @@
     try {
       await sets.settled(); // a just-ticked set must be saved before unticked ones are dropped
       const result = await api.finishWorkout(workout.id);
-      clearTimers(allSets);
-      writeEditMark(null);
+      clearSetTimers(allSets);
       confirmFinish = false;
       if (result.deleted || !result.workout) {
         toast('Nothing was ticked — workout discarded');
         navigate(['workouts'], {}, { replace: true });
+      } else if (editMode) {
+        toast('Workout saved');
+        // Edit was pushed on top of the detail page: return to that entry
+        // (it remounts and refetches) rather than stacking a second copy.
+        goBack(['workouts', String(result.workout.id)]);
       } else {
-        toast(editMode ? 'Workout saved' : 'Workout finished');
+        toast('Workout finished');
         navigate(['workouts', String(result.workout.id)], {}, { replace: true });
       }
     } catch (e) {
@@ -207,8 +173,7 @@
     try {
       await sets.settled();
       await api.deleteWorkout(workout.id);
-      clearTimers(allSets);
-      writeEditMark(null);
+      clearSetTimers(allSets);
       confirmDiscard = false;
       toast('Workout discarded');
       navigate(['workouts'], {}, { replace: true });
@@ -220,7 +185,9 @@
   }
 </script>
 
-<BackBar title={editMode ? 'Edit workout' : 'Workout'} fallback={['workouts']}>
+<!-- While editing, set changes are already saved live, so Back is Save: it
+     finishes the workout again instead of leaving it reopened. -->
+<BackBar title={editMode ? 'Edit workout' : 'Workout'} fallback={['workouts']} onback={editMode ? finish : undefined}>
   {#snippet actions()}
     {#if workout && !editMode}
       <button class="icon-btn" aria-label="Discard workout" onclick={() => (confirmDiscard = true)}><Icon name="trash" /></button>

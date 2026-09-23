@@ -1,5 +1,6 @@
 <script lang="ts">
   import Calendar from '../../components/Calendar.svelte';
+  import ConfigNotice from '../../components/ConfigNotice.svelte';
   import ConfirmSheet from '../../components/ConfirmSheet.svelte';
   import Icon from '../../components/Icon.svelte';
   import { api } from '../../lib/api';
@@ -7,6 +8,7 @@
   import { longDate, monthLabel, rangeFor } from '../../lib/dates';
   import { formatDuration, plural } from '../../lib/format';
   import { navigate } from '../../lib/router.svelte';
+  import { clearSetTimers } from '../../lib/timers';
   import { toast, toastError } from '../../lib/toast.svelte';
   import type { CalendarEntry, Workout } from '../../lib/types';
 
@@ -73,11 +75,34 @@
     }
   }
 
+  // A reopened past workout left open (e.g. Safari back out of Edit): Save
+  // finishes it again, as the edit screen's Save does.
+  async function saveReopened(): Promise<void> {
+    if (!open || busy) return;
+    busy = true;
+    try {
+      const result = await api.finishWorkout(open.id);
+      clearSetTimers(open.exercises.flatMap((e) => e.sets));
+      open = null;
+      if (result.deleted || !result.workout) {
+        toast('Nothing was ticked — workout discarded');
+      } else {
+        toast('Workout saved');
+        navigate(['workouts', String(result.workout.id)]);
+      }
+    } catch (e) {
+      toastError(e);
+    } finally {
+      busy = false;
+    }
+  }
+
   async function discard(): Promise<void> {
     if (!open || busy) return;
     busy = true;
     try {
       await api.deleteWorkout(open.id);
+      clearSetTimers(open.exercises.flatMap((e) => e.sets));
       toast('Workout discarded');
       open = null;
       confirmDiscard = false;
@@ -91,8 +116,18 @@
 
 <header class="page-head"><h1>Workouts</h1></header>
 
+<ConfigNotice />
+
 {#if loaded}
-  {#if open?.stale}
+  {#if open?.reopened}
+    <section class="banner stack">
+      <p>Editing workout from {longDate(open.local_date)}.</p>
+      <div class="row">
+        <button class="btn primary" disabled={busy} onclick={saveReopened}>Save</button>
+        <button class="btn" disabled={busy} onclick={() => navigate(['workouts', 'active'])}>Keep editing</button>
+      </div>
+    </section>
+  {:else if open?.stale}
     <section class="banner warn stack">
       <p>A workout from {longDate(open.local_date)} is still open.</p>
       <div class="row">

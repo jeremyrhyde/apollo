@@ -5,6 +5,7 @@
   import { onMount } from 'svelte';
   import Icon from './Icon.svelte';
   import { formatDuration, parseDecimal, parseDuration } from '../lib/format';
+  import { setTimerKey } from '../lib/timers';
   import type { FieldName, SetPatch, WorkoutSet } from '../lib/types';
 
   interface Props {
@@ -36,7 +37,7 @@
   const MAX_TIMER_AGE_MS = 12 * 60 * 60 * 1000;
 
   function timerKey(): string {
-    return `apollo:set-timer:${set.id}`;
+    return setTimerKey(set.id);
   }
 
   function loadTimerStart(): number | null {

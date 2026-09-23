@@ -17,6 +17,7 @@
   );
   let items: WorkoutSummary[] = $state([]);
   let loaded = $state(false);
+  let error: string | null = $state(null);
 
   // `range` lives in the query string, and App.svelte keys this screen on
   // path only — switching 1W/1M/1Y re-runs this effect without a remount, so
@@ -24,15 +25,22 @@
   $effect(() => {
     const r = current;
     let live = true;
+    error = null;
     api
       .workouts(r)
       .then((list) => {
-        if (live) {
-          items = list;
-          loaded = true;
-        }
+        if (live) items = list;
       })
-      .catch(toastError);
+      .catch((e: unknown) => {
+        if (live) {
+          items = [];
+          error = e instanceof Error ? e.message : String(e);
+        }
+        toastError(e);
+      })
+      .finally(() => {
+        if (live) loaded = true;
+      });
     return () => {
       live = false;
     };
@@ -42,7 +50,9 @@
 <BackBar title="Past workouts" fallback={['workouts']} />
 <RangeFilter value={current} onchange={(r) => navigate(['workouts', 'history'], { range: r }, { replace: true })} />
 
-{#if loaded && items.length === 0}
+{#if error}
+  <p class="error">Couldn't load past workouts: {error}</p>
+{:else if loaded && items.length === 0}
   <p class="muted">No workouts in this period.</p>
 {/if}
 
@@ -56,3 +66,7 @@
       onclick={() => navigate(['workouts', String(w.id)])} />
   {/each}
 </div>
+
+<style>
+  .error { color: var(--color-danger); }
+</style>
