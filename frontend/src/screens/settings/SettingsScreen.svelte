@@ -1,6 +1,6 @@
 <script lang="ts">
   import { api } from '../../lib/api';
-  import { app } from '../../lib/app.svelte';
+  import { app, updateSetting } from '../../lib/app.svelte';
   import { toast, toastError } from '../../lib/toast.svelte';
   import type { Settings } from '../../lib/types';
 
@@ -23,7 +23,15 @@
   // failure puts back whatever the server still has and reports once. `busy`
   // blocks a second tap on the same setting until its request settles, so
   // two quick taps on one control can't have their responses race.
+  //
+  // Units are the exception: other screens show numbers the API already
+  // converted server-side using the *stored* unit. Flipping the label here
+  // before the PUT resolves could show an old-unit number under the new
+  // unit if a fetch lands in that window, so weight_unit/distance_unit are
+  // applied only once the server confirms — `busy` (disabling the control)
+  // is the only pending feedback, and there's nothing to roll back.
   let busy: Partial<Record<keyof Settings, boolean>> = $state({});
+  const PESSIMISTIC: (keyof Settings)[] = ['weight_unit', 'distance_unit'];
 
   // A plain `settings[key] = value` with key typed as `keyof Settings` (a
   // union) doesn't type-check — TS can't prove the value matches whichever
@@ -35,8 +43,19 @@
   async function change(key: keyof Settings, value: string): Promise<void> {
     const settings = app.settings;
     if (!settings || busy[key] || settings[key] === value) return;
-    const previous = settings[key];
     busy[key] = true;
+    if (PESSIMISTIC.includes(key)) {
+      try {
+        await updateSetting(key, value as Settings[typeof key]);
+        toast('Saved');
+      } catch (e) {
+        toastError(e);
+      } finally {
+        busy[key] = false;
+      }
+      return;
+    }
+    const previous = settings[key];
     setLocal(key, value as Settings[typeof key]);
     try {
       await api.setSetting(key, value);
