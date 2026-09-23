@@ -65,6 +65,17 @@ def test_missing_file_reported(tmp_path):
     assert c.selfcare.categories == []
 
 
+def test_unreadable_file_reported_and_others_still_load(tmp_path):
+    d = _write(tmp_path / "c", exercises=EXERCISES, selfcare=SELFCARE)
+    (d / "apollo.yaml").unlink()
+    (d / "apollo.yaml").mkdir()
+    c = load_catalog(d)
+    assert len(c.errors) == 1
+    assert c.errors[0].startswith("apollo.yaml: cannot read (")
+    assert c.apollo.timezone == "UTC"
+    assert c.category("skincare") is not None
+
+
 def test_invalid_file_reported_with_location_and_others_still_load(tmp_path):
     bad = EXERCISES.replace("type: time", "type: nope")
     c = load_catalog(_write(tmp_path / "c", exercises=bad, selfcare=SELFCARE))

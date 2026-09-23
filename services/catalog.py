@@ -111,6 +111,9 @@ def load_catalog(config_dir: str | Path) -> Catalog:
         except FileNotFoundError:
             errors.append(f"{filename}: file not found")
             parsed[attr] = model()
+        except OSError as exc:
+            errors.append(f"{filename}: cannot read ({exc.strerror or exc})")
+            parsed[attr] = model()
         except (yaml.YAMLError, ValidationError, ValueError) as exc:
             errors.append(f"{filename}: {_describe(exc)}")
             parsed[attr] = model()

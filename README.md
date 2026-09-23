@@ -51,9 +51,9 @@ Makefile              setup / build / run / test / service-* / kiosk-*
 pyproject.toml        uv-managed deps (uv.lock committed)
 config.py             Settings — every knob, read from env / .env
 main.py               build_app() + lifespan; `python main.py` serves it
-core/                 app framework: api.py now; events, websocket, state later
+core/                 app framework: api, container, state (+ migrations/), events
 schemas/              pydantic models
-services/             Apollo's domain logic
+services/             Apollo's domain logic (metrics.py is a placeholder)
 tests/                pytest (+ pytest-asyncio, asyncio_mode=auto)
 config/               apollo.yaml, exercises.yaml, selfcare.yaml — the catalog
 frontend/             Svelte 5 + Vite app, built to frontend/dist and served at /ui
