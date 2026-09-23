@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # `datetime as dt`: two models have a field named `date`, which would shadow a
 # bare `date` type in their own annotations.
@@ -39,6 +39,14 @@ class UpdateSelfcareIn(BaseModel):
     types: list[str] | None = Field(None, min_length=1)
     date: dt.date | None = None
     notes: str | None = Field(None, max_length=2000)
+
+    @model_validator(mode="after")
+    def _date_not_explicit_null(self) -> "UpdateSelfcareIn":
+        # `date` is omittable (unchanged) but not nullable: an explicit
+        # `"date": null` would otherwise reset the session to today.
+        if "date" in self.model_fields_set and self.date is None:
+            raise ValueError("date must not be null")
+        return self
 
 
 DueStatus = Literal["never", "ok", "soon", "due", "overdue", "untracked"]

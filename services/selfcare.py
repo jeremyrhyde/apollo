@@ -75,17 +75,21 @@ class SelfcareService:
             row = conn.execute("SELECT * FROM selfcare_session WHERE id = ?", (session_id,)).fetchone()
             if row is None:
                 raise NotFound(f"session {session_id} not found")
-            cat = self._category(row["category_key"])
             if "types" in changes:
+                cat = self._category(row["category_key"])
                 keys = self._check_types(cat, changes["types"] or [])
                 conn.execute("DELETE FROM selfcare_session_type WHERE session_id = ?", (session_id,))
                 self._insert_types(conn, session_id, cat, keys)
             if "date" in changes:
-                local_date, performed_at = self._when(changes["date"])
-                conn.execute(
-                    "UPDATE selfcare_session SET local_date = ?, performed_at = ? WHERE id = ?",
-                    (local_date.isoformat(), performed_at, session_id),
-                )
+                new_date = changes["date"]
+                if new_date is None:
+                    raise Invalid("date must not be null")
+                if new_date != date.fromisoformat(row["local_date"]):
+                    local_date, performed_at = self._when(new_date)
+                    conn.execute(
+                        "UPDATE selfcare_session SET local_date = ?, performed_at = ? WHERE id = ?",
+                        (local_date.isoformat(), performed_at, session_id),
+                    )
             if "notes" in changes:
                 conn.execute("UPDATE selfcare_session SET notes = ? WHERE id = ?", (changes["notes"], session_id))
             conn.execute(
