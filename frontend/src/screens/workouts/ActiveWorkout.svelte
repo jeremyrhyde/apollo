@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { fly } from 'svelte/transition';
   import BackBar from '../../components/BackBar.svelte';
   import ConfirmSheet from '../../components/ConfirmSheet.svelte';
@@ -19,11 +20,13 @@
 
   let workout = $state<Workout | null>(null);
   let loaded = $state(false);
+  let loadError: string | null = $state(null);
   let editMode = $state(false);
   let picking = $state(false);
   let confirmFinish = $state(false);
   let confirmDiscard = $state(false);
   let busy = $state(false);
+  let addButton: HTMLButtonElement | undefined = $state();
   let now = $state(Date.now());
 
   const sets = new PatchQueue<WorkoutSet>();
@@ -68,15 +71,26 @@
     if (w && editMode) writeEditMark(w);
   }
 
-  $effect(() => {
-    let live = true;
-    api
-      .openWorkout()
-      .then((w) => {
-        if (live) show(w);
-      })
-      .catch(toastError)
-      .finally(() => (loaded = true));
+  // Cleared on unmount so a slow load can't write into a screen that's gone.
+  let live = true;
+
+  async function load(): Promise<void> {
+    loadError = null;
+    loaded = false;
+    try {
+      const w = await api.openWorkout();
+      if (live) show(w);
+    } catch (e) {
+      // Inline, not a toast: "No workout in progress" + Start would be a lie
+      // here, and Start would 409 if one is in fact open.
+      if (live) loadError = e instanceof Error ? e.message : String(e);
+    } finally {
+      if (live) loaded = true;
+    }
+  }
+
+  onMount(() => {
+    void load();
     return () => {
       live = false;
     };
@@ -104,8 +118,13 @@
     }
   }
 
-  async function addExercise(key: string): Promise<void> {
+  function closePicker(): void {
     picking = false;
+    addButton?.focus();
+  }
+
+  async function addExercise(key: string): Promise<void> {
+    closePicker();
     if (!workout) return;
     try {
       workout.exercises.push(await api.addExercise(workout.id, key));
@@ -139,7 +158,7 @@
   }
 
   // Optimistic: show the change now; PatchQueue saves edits to a set in order
-  // and only lets the newest one's response (or rollback) through.
+  // and only lets the newest one's response (or rollback + toast) through.
   function patchSet(set: WorkoutSet, patch: SetPatch): void {
     const before = $state.snapshot(set);
     Object.assign(set, patch);
@@ -208,7 +227,12 @@
   {/snippet}
 </BackBar>
 
-{#if loaded && !workout}
+{#if loadError}
+  <div class="center-state">
+    <p>Couldn't load the workout: {loadError}</p>
+    <button class="btn" onclick={load}>Retry</button>
+  </div>
+{:else if loaded && !workout}
   <div class="center-state">
     <p class="muted">No workout in progress.</p>
     <button class="btn primary big" disabled={busy} onclick={start}><Icon name="plus" /> Start workout</button>
@@ -244,13 +268,13 @@
   {/each}
 
   <div class="bottom">
-    <button class="btn" onclick={() => (picking = true)}><Icon name="plus" /> Add exercise</button>
+    <button class="btn" bind:this={addButton} onclick={() => (picking = true)}><Icon name="plus" /> Add exercise</button>
     <button class="btn primary" disabled={busy} onclick={() => (confirmFinish = true)}>{editMode ? 'Save' : 'Finish'}</button>
   </div>
 {/if}
 
 {#if picking && app.catalog}
-  <ExercisePicker catalog={app.catalog} onpick={addExercise} onclose={() => (picking = false)} />
+  <ExercisePicker catalog={app.catalog} onpick={addExercise} onclose={closePicker} />
 {/if}
 
 {#if confirmFinish && workout}

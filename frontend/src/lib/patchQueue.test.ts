@@ -45,7 +45,7 @@ describe('PatchQueue', () => {
     expect(shown).toEqual([{ weight: 110 }]);
   });
 
-  it('rolls back to the value before the first patch when everything fails', async () => {
+  it('rolls back to the value before the first patch, and reports once, when everything fails', async () => {
     const q = new PatchQueue<Row>();
     const shown: Row[] = [];
     const errors: unknown[] = [];
@@ -56,7 +56,7 @@ describe('PatchQueue', () => {
       q.run(1, { weight: 100 }, fail, (v) => shown.push(v), (e) => errors.push(e)),
       q.run(1, { weight: 105 }, fail, (v) => shown.push(v), (e) => errors.push(e)),
     ]);
-    expect(errors).toHaveLength(2);
+    expect(errors).toHaveLength(1);
     expect(shown).toEqual([{ weight: 100 }]);
   });
 
@@ -70,14 +70,54 @@ describe('PatchQueue', () => {
     expect(shown).toEqual([{ weight: 105 }]);
   });
 
-  it('lets a later success override an earlier failure without a rollback', async () => {
+  it('lets a later success override an earlier failure without a rollback or a report', async () => {
     const q = new PatchQueue<Row>();
     const shown: Row[] = [];
+    const errors: unknown[] = [];
     await Promise.all([
-      q.run(1, { weight: 100 }, () => Promise.reject(new Error('x')), (v) => shown.push(v), () => {}),
-      q.run(1, { weight: 105 }, async () => ({ weight: 110 }), (v) => shown.push(v), () => {}),
+      q.run(1, { weight: 100 }, () => Promise.reject(new Error('x')), (v) => shown.push(v), (e) => errors.push(e)),
+      q.run(1, { weight: 105 }, async () => ({ weight: 110 }), (v) => shown.push(v), (e) => errors.push(e)),
     ]);
     expect(shown).toEqual([{ weight: 110 }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('settled() resolves while and after a request rejects', async () => {
+    const q = new PatchQueue<Row>();
+    const slow = deferred<Row>();
+    const errors: unknown[] = [];
+    void q.run(1, { weight: 1 }, () => slow.promise, () => {}, (e) => errors.push(e));
+    const settled = q.settled();
+    slow.reject(new Error('offline'));
+    await settled;
+    expect(errors).toHaveLength(1);
+    await q.settled();
+  });
+
+  it('a throwing show does not block later sends for that id', async () => {
+    const q = new PatchQueue<Row>();
+    const boom = q.run(1, { weight: 1 }, async () => ({ weight: 2 }), () => {
+      throw new Error('render failed');
+    }, () => {});
+    await expect(boom).rejects.toThrow('render failed');
+    await q.settled();
+    const shown: Row[] = [];
+    await q.run(1, { weight: 2 }, async () => ({ weight: 3 }), (v) => shown.push(v), () => {});
+    expect(shown).toEqual([{ weight: 3 }]);
+  });
+
+  it('a throwing fail does not block later sends for that id', async () => {
+    const q = new PatchQueue<Row>();
+    const slow = deferred<Row>();
+    const sent: number[] = [];
+    const first = q.run(1, { weight: 1 }, () => slow.promise, () => {}, () => {
+      throw new Error('toast failed');
+    });
+    slow.reject(new Error('offline'));
+    await expect(first).rejects.toThrow('toast failed');
+    const second = q.run(1, { weight: 1 }, async () => (sent.push(2), { weight: 2 }), () => {}, () => {});
+    await Promise.all([second, q.settled()]);
+    expect(sent).toEqual([2]);
   });
 
   it('keeps ids independent', async () => {

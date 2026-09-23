@@ -46,7 +46,7 @@
 
 <button class="backdrop" aria-label="Close" onclick={onclose} transition:fade={{ duration: dur(150) }}></button>
 <div
-  class="sheet picker"
+  class="sheet"
   role="dialog"
   aria-modal="true"
   aria-label="Add exercise"
@@ -54,14 +54,16 @@
   bind:this={sheetEl}
   transition:fly={{ y: 400, duration: dur(220) }}
 >
-  <div class="head">
-    <h2>Add exercise</h2>
-    <button class="icon-btn" aria-label="Close" onclick={onclose}><Icon name="x" /></button>
+  <div class="top">
+    <div class="head">
+      <h2>Add exercise</h2>
+      <button class="icon-btn" aria-label="Close" onclick={onclose}><Icon name="x" /></button>
+    </div>
+    <label class="search">
+      <Icon name="search" size={18} />
+      <input class="input" type="search" placeholder="Search exercises" aria-label="Search exercises" bind:value={search} />
+    </label>
   </div>
-  <label class="search">
-    <Icon name="search" size={18} />
-    <input class="input" type="search" placeholder="Search exercises" aria-label="Search exercises" bind:value={search} />
-  </label>
 
   {#if recent.length}
     <p class="section-title">Recent</p>
@@ -81,7 +83,14 @@
 </div>
 
 <style>
-  .picker { max-height: 88vh; }
+  /* Title + search stay put while the list scrolls. The sheet scrolls inside
+     its own padding, so pull the bar up over that padding to pin it flush. */
+  .top {
+    position: sticky; top: calc(-1 * var(--space-4)); z-index: 1;
+    display: grid; gap: var(--space-3);
+    margin-top: calc(-1 * var(--space-4)); padding: var(--space-4) 0 var(--space-2);
+    background: var(--color-surface);
+  }
   .head { display: flex; justify-content: space-between; align-items: center; }
   .search { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-muted); }
   .search .input { flex: 1; min-width: 0; }
