@@ -30,6 +30,11 @@
   // The instant is mirrored to localStorage (keyed by set id) so a reload or
   // a remount of this row — closing the tab mid-set, revisiting the active
   // workout — doesn't lose an in-progress timer.
+  // SQLite reuses row ids (no AUTOINCREMENT), so a leftover key could
+  // otherwise restore a bogus timer onto an unrelated, later set with the
+  // same id — ignore (and drop) anything older than this.
+  const MAX_TIMER_AGE_MS = 12 * 60 * 60 * 1000;
+
   function timerKey(): string {
     return `apollo:set-timer:${set.id}`;
   }
@@ -38,7 +43,12 @@
     try {
       const raw = localStorage.getItem(timerKey());
       const value = raw === null ? null : Number(raw);
-      return value !== null && Number.isFinite(value) ? value : null;
+      if (value === null || !Number.isFinite(value)) return null;
+      if (Date.now() - value > MAX_TIMER_AGE_MS) {
+        localStorage.removeItem(timerKey());
+        return null;
+      }
+      return value;
     } catch {
       return null;
     }
@@ -56,11 +66,7 @@
   let timerStart: number | null = $state(null);
   let now = $state(Date.now());
 
-  // Read any in-progress timer once, after mount, rather than in the $state
-  // initializer above — `readonly` and `set` are props, and Svelte flags a
-  // reactive read inside a `$state()` initializer as capturing only the
-  // first value, which is exactly what we want here (this row is remounted
-  // whenever its set id changes), but a plain, once-only read belongs here.
+  // Restored once after mount, not in the `$state` initializer above, which Svelte's lint flags for reading a prop only once.
   onMount(() => {
     if (!readonly) timerStart = loadTimerStart();
   });

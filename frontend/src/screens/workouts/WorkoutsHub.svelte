@@ -22,11 +22,9 @@
   $effect(() => {
     api
       .openWorkout()
-      .then((w) => {
-        open = w;
-        loaded = true;
-      })
-      .catch(toastError);
+      .then((w) => (open = w))
+      .catch(toastError)
+      .finally(() => (loaded = true)); // failed or not, stop blocking the Start button
   });
 
   $effect(() => {
