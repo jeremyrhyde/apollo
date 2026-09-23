@@ -173,10 +173,10 @@ def test_due_list_orders_overdue_due_soon_ok(env):
                     key="c",
                     name="C",
                     types=[
+                        SelfcareType(key="ok_t", name="Ok", every_days=5),
+                        SelfcareType(key="soon_t", name="Soon", every_days=5),
                         SelfcareType(key="overdue_t", name="Overdue", every_days=5),
                         SelfcareType(key="due_t", name="Due", every_days=5),
-                        SelfcareType(key="soon_t", name="Soon", every_days=5),
-                        SelfcareType(key="ok_t", name="Ok", every_days=5),
                     ],
                 )
             ]
