@@ -100,7 +100,11 @@ class CalendarService:
 
     def last_done(self) -> LastDone:
         with self.db.read() as conn:
-            workout = conn.execute("SELECT MAX(local_date) FROM workout WHERE ended_at IS NOT NULL").fetchone()[0]
+            # A reopened workout (ended_at NULL, reopened_from set) is an edit
+            # in progress, not undone: it still counts for "last done".
+            workout = conn.execute(
+                "SELECT MAX(local_date) FROM workout WHERE COALESCE(ended_at, reopened_from) IS NOT NULL"
+            ).fetchone()[0]
             selfcare = conn.execute("SELECT MAX(local_date) FROM selfcare_session").fetchone()[0]
             types = {
                 f"{r[0]}.{r[1]}": r[2]

@@ -95,3 +95,10 @@ def test_last_done(svc, now):
     last = calendar.last_done()
     assert (last.workout, last.selfcare) == ("2026-09-20", "2026-09-21")
     assert last.types == {"skincare.am_routine": "2026-09-21"}
+
+
+def test_reopened_workout_still_counts_for_last_done(svc, now):
+    workouts, _, calendar = svc
+    wid = finished(workouts, now, datetime(2026, 9, 20, 17, 0, tzinfo=UTC), ["pull_up"])
+    workouts.reopen(wid)
+    assert calendar.last_done().workout == "2026-09-20"

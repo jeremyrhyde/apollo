@@ -274,6 +274,19 @@ def test_history_ranges_and_summary(workouts, now):
     assert (summary.duration_s, summary.focus, summary.exercise_count, summary.set_count) == (2700, ["chest"], 1, 2)
 
 
+def test_history_still_lists_a_reopened_workout(workouts, now):
+    now.dt = datetime(2026, 9, 20, 18, 0, tzinfo=UTC)
+    w = workouts.start([])
+    log_exercise(workouts, w.id, "pull_up", [{"reps": 10}])
+    now.advance(minutes=45)
+    workouts.finish(w.id)
+    workouts.reopen(w.id)
+    summary = workouts.history("1W")[0]
+    assert summary.id == w.id
+    assert summary.ended_at == datetime(2026, 9, 20, 18, 45, tzinfo=UTC).isoformat()
+    assert summary.duration_s == 2700
+
+
 def test_get_open_flags_stale(workouts, now):
     workouts.start([])
     assert workouts.get_open().stale is False

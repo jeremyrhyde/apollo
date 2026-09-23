@@ -268,15 +268,19 @@ class WorkoutService:
                 raise NotFound(f"workout {workout_id} not found")
 
     def history(self, range_key: str) -> list[WorkoutSummary]:
+        # A reopened workout (ended_at NULL, reopened_from set) is an edit in
+        # progress, not an abandoned one: it still belongs in history, with
+        # the duration it was originally finished with.
         since = self.clock.range_start(range_key).isoformat()
         with self.db.read() as conn:
             rows = conn.execute(
-                """SELECT w.id, w.local_date, w.started_at, w.ended_at,
+                """SELECT w.id, w.local_date, w.started_at,
+                          COALESCE(w.ended_at, w.reopened_from) AS effective_ended_at,
                           (SELECT COUNT(*) FROM workout_exercise we WHERE we.workout_id = w.id) AS exercise_count,
                           (SELECT COUNT(*) FROM workout_set s JOIN workout_exercise we
                              ON we.id = s.workout_exercise_id WHERE we.workout_id = w.id) AS set_count
                      FROM workout w
-                    WHERE w.ended_at IS NOT NULL AND w.local_date >= ?
+                    WHERE COALESCE(w.ended_at, w.reopened_from) IS NOT NULL AND w.local_date >= ?
                     ORDER BY w.started_at DESC""",
                 (since,),
             ).fetchall()
@@ -286,8 +290,10 @@ class WorkoutService:
                 id=r["id"],
                 local_date=r["local_date"],
                 started_at=r["started_at"],
-                ended_at=r["ended_at"],
-                duration_s=int((from_iso(r["ended_at"]) - from_iso(r["started_at"])).total_seconds()),
+                ended_at=r["effective_ended_at"],
+                duration_s=int(
+                    (from_iso(r["effective_ended_at"]) - from_iso(r["started_at"])).total_seconds()
+                ),
                 focus=focus[r["id"]],
                 exercise_count=r["exercise_count"],
                 set_count=r["set_count"],
