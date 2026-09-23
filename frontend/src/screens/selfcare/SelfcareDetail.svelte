@@ -1,6 +1,6 @@
 <script lang="ts">
   import BackBar from '../../components/BackBar.svelte';
-  import { api } from '../../lib/api';
+  import { api, ApiError } from '../../lib/api';
   import { longDate } from '../../lib/dates';
   import { navigate } from '../../lib/router.svelte';
   import { toastError } from '../../lib/toast.svelte';
@@ -18,6 +18,13 @@
       .selfcareSession(id)
       .then((s) => (session = s))
       .catch((e: unknown) => {
+        // A 404 means this session no longer exists (deleted from its edit
+        // screen, or reached by navigating back to a stale URL) — there's
+        // nothing to show or retry, so leave quietly instead of an error.
+        if (e instanceof ApiError && e.status === 404) {
+          navigate(['selfcare', 'history'], {}, { replace: true });
+          return;
+        }
         error = e instanceof Error ? e.message : String(e);
         toastError(e);
       });

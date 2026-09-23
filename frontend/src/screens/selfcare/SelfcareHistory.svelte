@@ -35,6 +35,7 @@
       })
       .catch((e: unknown) => {
         if (live) {
+          items = [];
           error = e instanceof Error ? e.message : String(e);
           loaded = true;
         }

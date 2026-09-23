@@ -10,12 +10,20 @@
   import type { CalendarEntry, DueItem } from '../../lib/types';
 
   let due: DueItem[] = $state([]);
+  let dueError: string | null = $state(null);
   let days: Record<string, CalendarEntry[]> = $state({});
 
   const range = $derived(rangeFor('month', app.today, app.settings!.week_start));
 
   $effect(() => {
-    api.due().then((d) => (due = d)).catch(toastError);
+    dueError = null;
+    api
+      .due()
+      .then((d) => (due = d))
+      .catch((e: unknown) => {
+        dueError = e instanceof Error ? e.message : String(e);
+        toastError(e);
+      });
   });
 
   $effect(() => {
@@ -31,7 +39,9 @@
 
 <button class="btn primary big" onclick={() => navigate(['selfcare', 'log'])}><Icon name="plus" /> Log skincare</button>
 
-{#if due.length}
+{#if dueError}
+  <p class="error">Couldn't load what's due: {dueError}</p>
+{:else if due.length}
   <section class="card">
     <strong>Due</strong>
     <ul class="due">
@@ -54,13 +64,14 @@
 <button class="btn block" onclick={() => navigate(['selfcare', 'history'])}><Icon name="clock" /> Past sessions</button>
 
 <style>
+  .error { color: var(--color-danger); }
   .between { justify-content: space-between; }
   .due { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
-  .due li { display: grid; grid-template-columns: 12px 1fr auto; align-items: center; gap: var(--space-2); min-height: 32px; }
+  .due li { display: grid; grid-template-columns: 12px 1fr auto; align-items: center; gap: var(--space-2); min-height: var(--space-8); }
   .status { width: 10px; height: 10px; border-radius: var(--radius-pill); background: var(--color-text-faint); }
   .ok .status { background: var(--color-accent); }
   .soon .status { background: var(--color-warn); }
-  .due li.due .status, .overdue .status { background: var(--color-danger); }
+  .never .status, .due li.due .status, .overdue .status { background: var(--color-danger); }
   .when { font-size: var(--text-sm); color: var(--color-text-muted); }
   .overdue .when { color: var(--color-danger); }
 </style>

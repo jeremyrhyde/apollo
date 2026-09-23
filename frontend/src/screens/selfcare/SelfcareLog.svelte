@@ -34,6 +34,7 @@
   let original: { types: string[]; date: string; notes: string } | null = null;
 
   const category = $derived(categories.find((c) => c.key === categoryKey));
+  const dateOk = $derived(date !== '' && date <= app.today);
 
   $effect(() => {
     api
@@ -70,6 +71,7 @@
   const sameTypes = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join() === [...b].sort().join();
 
   async function save(): Promise<void> {
+    if (!dateOk) return;
     busy = true;
     try {
       if (id === undefined) {
@@ -86,7 +88,11 @@
         if (!original || currentNotes !== (original.notes || null)) patch.notes = currentNotes;
         await api.updateSelfcare(id, patch);
         toast('Saved');
-        navigate(['selfcare', String(id)], {}, { replace: true });
+        // Not a plain navigate: that would replace this entry with the
+        // detail URL, leaving two adjacent history entries at the same URL
+        // (Back would look like a no-op). goBack instead reuses the detail
+        // entry we arrived from, so it remounts and refetches.
+        goBack(['selfcare', String(id)]);
       }
     } catch (e) {
       toastError(e);
@@ -101,7 +107,9 @@
     try {
       await api.deleteSelfcare(id);
       toast('Session deleted');
-      goBack(['selfcare', 'history']);
+      // Not goBack: the entry we'd return to is this very session's detail
+      // page, which no longer exists once it's deleted.
+      navigate(['selfcare', 'history'], {}, { replace: true });
     } catch (e) {
       toastError(e);
       busy = false;
@@ -152,7 +160,7 @@
     <textarea class="input" bind:value={notes} maxlength="2000"></textarea>
   </label>
 
-  <button class="btn primary big" disabled={busy || selected.length === 0} onclick={save}>
+  <button class="btn primary big" disabled={busy || selected.length === 0 || !dateOk} onclick={save}>
     {id === undefined ? 'Save' : 'Save changes'}
   </button>
 
