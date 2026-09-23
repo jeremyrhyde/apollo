@@ -25,10 +25,13 @@ working version to adapt:
 - Every setting is a field on `config.Settings` and a commented line in
   `.env.example`. Never read `os.environ` at a call site.
 - A hand-edited YAML config gets a committed `<name>.yaml.example`; the real
-  file is gitignored.
-- API: one `_build_<area>_router()` per area in `core/api.py`; shared objects
-  live on `app.state`, set up in `main.py`'s lifespan. API is served under
-  `/api`.
+  file is gitignored — except `config/*.yaml` (apollo, exercises, selfcare),
+  which are committed outright: they're the catalog, not secrets or
+  host-specific settings (spec §3).
+- API: one `_build_<area>_router()` per area in `core/api.py`. Shared objects
+  are a `Services` dataclass (`core/container.py`) built once by
+  `main.build_services()` and put on `app.state.services` in `create_app()`;
+  the lifespan only closes the DB on shutdown. API is served under `/api`.
 - Web UI: Svelte 5 (runes only) + Vite + TypeScript in `frontend/`, built to
   `frontend/dist` and served at `/ui`. All fetches go through
   `frontend/src/lib/api.ts`. Design tokens (colors, radii, spacing, type
