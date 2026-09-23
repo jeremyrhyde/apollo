@@ -45,10 +45,28 @@
     return `background: linear-gradient(90deg, ${w} 50%, ${s} 50%)`;
   }
 
-  function monthMarker(row: ISODate[], i: number): string {
-    const first = row.find((d) => d.endsWith('-01'));
-    if (first) return monthShort(first);
-    return i === 0 ? monthShort(row[0]) : '';
+  // Newest-first week rows plus, per row, the month label for its margin —
+  // the current month's fallback (row 0) is suppressed once its actual 1st
+  // shows up in a later row, so a month is never labelled twice.
+  const yearGrid = $derived(yearRows(anchor, weekStart));
+  const yearLabels = $derived.by(() => {
+    const rows = yearGrid;
+    const hasFirst = new Set(rows.flatMap((row) => row.filter((d) => d.endsWith('-01')).map((d) => d.slice(0, 7))));
+    return rows.map((row, i) => {
+      const first = row.find((d) => d.endsWith('-01'));
+      if (first) return monthShort(first);
+      return i === 0 && !hasFirst.has(row[0].slice(0, 7)) ? monthShort(row[0]) : '';
+    });
+  });
+
+  function heatLabel(d: ISODate): string {
+    const entries = entriesOn(d);
+    if (kinds.length > 1) {
+      const w = entries.filter((e) => e.kind === 'workout').length;
+      const s = entries.filter((e) => e.kind === 'selfcare').length;
+      return `${d}: ${w} workout, ${s} self-care`;
+    }
+    return `${d}: ${entries.length} logged`;
   }
 </script>
 
@@ -72,36 +90,52 @@
     {/each}
   </ol>
 {:else if view === 'month'}
-  <div class="month" class:compact>
-    {#each labels as l (l)}<span class="dow">{compact ? l[0] : l}</span>{/each}
-    {#each monthGrid(anchor, weekStart).flat() as d (d)}
-      {@const entries = entriesOn(d)}
-      <svelte:element
-        this={compact ? 'div' : 'button'}
-        class="cell"
-        class:out={d.slice(0, 7) !== anchor.slice(0, 7)}
-        class:today={d === today}
-        aria-label={compact ? undefined : `${d}: ${entries.length} logged`}
-        onclick={compact ? undefined : () => onday?.(d)}>
-        <span class="num">{Number(d.slice(8))}</span>
-        <span class="dots">
-          {#each entries.slice(0, 3) as e (`${e.kind}-${e.id}`)}<span class="dot {e.kind}"></span>{/each}
-          {#if entries.length > 3}<span class="more">+{entries.length - 3}</span>{/if}
+  {#snippet monthCell(d: ISODate, entries: CalendarEntry[])}
+    <span class="num">{Number(d.slice(8))}</span>
+    <span class="dots">
+      {#each entries.slice(0, 3) as e (`${e.kind}-${e.id}`)}<span class="dot {e.kind}"></span>{/each}
+      {#if entries.length > 3}<span class="more">+{entries.length - 3}</span>{/if}
+    </span>
+  {/snippet}
+  {#if compact}
+    <!-- Non-interactive and built from phrasing content only (span, not div/button):
+         hub screens place this inside a <button class="card">, and block or
+         interactive content nested in a button is invalid HTML. -->
+    <span class="month compact">
+      {#each labels as l (l)}<span class="dow">{l[0]}</span>{/each}
+      {#each monthGrid(anchor, weekStart).flat() as d (d)}
+        <span class="cell" class:out={d.slice(0, 7) !== anchor.slice(0, 7)} class:today={d === today}>
+          {@render monthCell(d, entriesOn(d))}
         </span>
-      </svelte:element>
-    {/each}
-  </div>
+      {/each}
+    </span>
+  {:else}
+    <div class="month">
+      {#each labels as l (l)}<span class="dow">{l}</span>{/each}
+      {#each monthGrid(anchor, weekStart).flat() as d (d)}
+        {@const entries = entriesOn(d)}
+        <button
+          class="cell"
+          class:out={d.slice(0, 7) !== anchor.slice(0, 7)}
+          class:today={d === today}
+          aria-label={`${d}: ${entries.length} logged`}
+          onclick={() => onday?.(d)}>
+          {@render monthCell(d, entries)}
+        </button>
+      {/each}
+    </div>
+  {/if}
 {:else}
   <div class="year">
     <span></span>
     {#each labels as l (l)}<span class="dow">{l[0]}</span>{/each}
-    {#each yearRows(anchor, weekStart) as row, i (row[0])}
-      <span class="mlabel">{monthMarker(row, i)}</span>
+    {#each yearGrid as row, i (row[0])}
+      <span class="mlabel">{yearLabels[i]}</span>
       {#each row as d (d)}
         {#if d > today}
           <span class="heat future"></span>
         {:else}
-          <button class="heat" class:today={d === today} style={heatStyle(d)} aria-label={d} onclick={() => onday?.(d)}></button>
+          <button class="heat" class:today={d === today} style={heatStyle(d)} aria-label={heatLabel(d)} onclick={() => onday?.(d)}></button>
         {/if}
       {/each}
     {/each}
@@ -123,11 +157,6 @@
   .week-entry small { grid-column: 2; color: var(--color-text-muted); font-size: var(--text-xs); }
   .empty { color: var(--color-text-faint); }
 
-  /* dots (kind markers, shared by week list and month grid) */
-  .dot { width: 7px; height: 7px; border-radius: var(--radius-pill); flex: none; }
-  .dot.workout { background: var(--color-workout); }
-  .dot.selfcare { background: var(--color-selfcare); }
-
   /* month */
   .month { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
   .dow { text-align: center; font-size: var(--text-xs); color: var(--color-text-muted); padding-bottom: var(--space-1); }
@@ -140,7 +169,7 @@
   .cell.today { border-color: var(--color-accent); }
   .num { font-size: var(--text-sm); }
   .dots { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; justify-content: center; }
-  .more { font-size: 10px; color: var(--color-text-muted); }
+  .more { font-size: var(--text-xs); color: var(--color-text-muted); }
   .compact { gap: 1px; }
   .compact .cell { min-height: 30px; cursor: inherit; }
   .compact .num { font-size: var(--text-xs); }
@@ -149,7 +178,7 @@
   /* year heatmap */
   .year { display: grid; grid-template-columns: 34px repeat(7, 1fr); gap: 3px; }
   .mlabel { font-size: var(--text-xs); color: var(--color-text-muted); align-self: center; }
-  .heat { aspect-ratio: 1; border: 0; border-radius: 3px; padding: 0; cursor: pointer; min-height: 0; }
+  .heat { aspect-ratio: 1; border: 0; border-radius: var(--radius-sm); padding: 0; cursor: pointer; min-height: 0; }
   .heat.future { background: none; outline: 1px dashed var(--color-border-soft); cursor: default; }
   .heat.today { outline: 2px solid var(--color-text); outline-offset: 1px; }
 </style>
