@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDays, addMonths, dayLabel, diffDays, isValidISODate, longDate, monthGrid, monthLabel,
-  rangeFor, shortDate, startOfWeek, weekdayIndex, weekdayLabels, yearRows,
+  rangeFor, shortDate, shortDateWithYear, startOfWeek, weekdayIndex, weekdayLabels, yearRows,
 } from './dates';
 
 // 2026-09-22 is a Tuesday; 2026-09-01 a Tuesday; 2026-09-30 a Wednesday.
@@ -48,6 +48,7 @@ describe('dates', () => {
   it('formats labels', () => {
     expect(monthLabel('2026-09-22')).toBe('September 2026');
     expect(shortDate('2026-09-22')).toBe('Sep 22');
+    expect(shortDateWithYear('2026-09-22')).toBe('Sep 22, 2026');
     expect(longDate('2026-09-22')).toBe('Tuesday, September 22');
     expect(dayLabel('2026-09-22')).toBe('Tue 22');
   });

@@ -14,10 +14,12 @@
   const kinds: Kind[] = $derived(kind === 'workout' || kind === 'selfcare' ? [kind] : ['workout', 'selfcare']);
   let entries: CalendarEntry[] = $state([]);
   let loaded = $state(false);
+  let error: string | null = $state(null);
 
   $effect(() => {
     const wanted = kinds;
     let live = true;
+    error = null;
     api
       .calendar(date, date, wanted)
       .then((r) => {
@@ -26,7 +28,13 @@
           loaded = true;
         }
       })
-      .catch(toastError);
+      .catch((e: unknown) => {
+        if (live) {
+          error = e instanceof Error ? e.message : String(e);
+          loaded = true;
+        }
+        toastError(e);
+      });
     return () => {
       live = false;
     };
@@ -35,7 +43,9 @@
 
 <BackBar title={longDate(date)} fallback={['calendar']} />
 
-{#if loaded && entries.length === 0}
+{#if error}
+  <p class="error">Couldn't load this day: {error}</p>
+{:else if loaded && entries.length === 0}
   <p class="muted">Nothing logged on this day.</p>
 {/if}
 
@@ -53,3 +63,7 @@
 {#if date <= app.today}
   <button class="btn block" onclick={() => navigate(['selfcare', 'log'], { date })}>Log skincare for this day</button>
 {/if}
+
+<style>
+  .error { color: var(--color-danger); }
+</style>

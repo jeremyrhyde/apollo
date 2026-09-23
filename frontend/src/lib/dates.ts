@@ -106,5 +106,6 @@ function fmt(d: ISODate, options: Intl.DateTimeFormatOptions): string {
 export const monthLabel = (d: ISODate) => fmt(d, { month: 'long', year: 'numeric' });
 export const monthShort = (d: ISODate) => fmt(d, { month: 'short' });
 export const shortDate = (d: ISODate) => fmt(d, { month: 'short', day: 'numeric' });
+export const shortDateWithYear = (d: ISODate) => fmt(d, { month: 'short', day: 'numeric', year: 'numeric' });
 export const longDate = (d: ISODate) => fmt(d, { weekday: 'long', month: 'long', day: 'numeric' });
 export const dayLabel = (d: ISODate) => `${WEEKDAYS[parseISO(d).getUTCDay()]} ${Number(d.slice(8))}`;

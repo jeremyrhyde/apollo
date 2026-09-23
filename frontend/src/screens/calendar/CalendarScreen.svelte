@@ -3,7 +3,9 @@
   import Icon from '../../components/Icon.svelte';
   import { api } from '../../lib/api';
   import { app } from '../../lib/app.svelte';
-  import { addDays, addMonths, monthLabel, rangeFor, shortDate } from '../../lib/dates';
+  import {
+    addDays, addMonths, isValidISODate, monthLabel, rangeFor, shortDate, shortDateWithYear,
+  } from '../../lib/dates';
   import { openEntry } from '../../lib/entries';
   import { relativeDays } from '../../lib/format';
   import { navigate } from '../../lib/router.svelte';
@@ -22,12 +24,21 @@
   const view: CalendarView = $derived(
     VIEWS.includes(query.view as CalendarView) ? (query.view as CalendarView) : app.settings!.calendar_view,
   );
-  const anchor = $derived(query.date ?? app.today);
+  const anchor = $derived(query.date && isValidISODate(query.date) ? query.date : app.today);
   const kind = $derived(query.kind === 'workout' || query.kind === 'selfcare' ? query.kind : 'all');
   const kinds: Kind[] = $derived(kind === 'all' ? ['workout', 'selfcare'] : [kind as Kind]);
   const weekStart = $derived(app.settings!.week_start);
   const range = $derived(rangeFor(view, anchor, weekStart));
-  const title = $derived(view === 'month' ? monthLabel(anchor) : `${shortDate(range.from)} – ${shortDate(range.to)}`);
+  // Year view always covers parts of two calendar years; a week can too,
+  // around New Year's — spell out the year in both those cases.
+  const spansYears = $derived(range.from.slice(0, 4) !== range.to.slice(0, 4));
+  const title = $derived(
+    view === 'month'
+      ? monthLabel(anchor)
+      : view === 'year' || spansYears
+        ? `${shortDateWithYear(range.from)} – ${shortDateWithYear(range.to)}`
+        : `${shortDate(range.from)} – ${shortDate(range.to)}`,
+  );
 
   let days: Record<string, CalendarEntry[]> = $state({});
   let lastDone: LastDone | null = $state(null);
@@ -56,8 +67,15 @@
   }
 
   function shift(direction: 1 | -1): void {
+    // Year view is a rolling 53-week heatmap, not a calendar year, so step it
+    // by whole weeks (364 = 52 * 7) to keep today's weekday column aligned —
+    // addMonths(±12) snaps to the 1st and would drop the last few weeks.
     const date =
-      view === 'week' ? addDays(anchor, 7 * direction) : addMonths(anchor, (view === 'month' ? 1 : 12) * direction);
+      view === 'week'
+        ? addDays(anchor, 7 * direction)
+        : view === 'year'
+          ? addDays(anchor, 364 * direction)
+          : addMonths(anchor, direction);
     setQuery({ date });
   }
 
