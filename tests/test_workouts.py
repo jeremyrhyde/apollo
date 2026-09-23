@@ -297,3 +297,60 @@ def test_reopened_old_workout_is_not_stale(workouts, now):
     now.advance(hours=40)  # long after both started_at and the finish
     workouts.reopen(w.id)
     assert workouts.get_open().stale is False
+
+
+def test_started_workout_is_not_reopened(workouts):
+    w = workouts.start([])
+    assert w.reopened is False
+    assert workouts.get_open().reopened is False
+
+
+def test_reopen_marks_reopened_until_finished(workouts, now):
+    w = workouts.start([])
+    log_exercise(workouts, w.id, "pull_up", [{"reps": 10}])
+    workouts.finish(w.id)
+    assert workouts.get(w.id).reopened is False
+    assert workouts.reopen(w.id).reopened is True
+    assert workouts.get(w.id).reopened is True
+    assert workouts.get_open().reopened is True
+    assert workouts.finish(w.id).reopened is False
+    assert workouts.get(w.id).reopened is False
+
+
+def test_reopened_workout_is_never_stale(workouts, now):
+    w = workouts.start([])
+    log_exercise(workouts, w.id, "pull_up", [{"reps": 10}])
+    workouts.finish(w.id)
+    workouts.reopen(w.id)
+    now.advance(hours=40)  # idle long past stale_hours after reopening
+    assert workouts.get_open().stale is False
+
+
+def test_finish_drops_done_sets_with_no_values(workouts):
+    w = workouts.start([])
+    log_exercise(workouts, w.id, "bench_press", [{"weight": 60.0, "reps": 8}])
+    bench = workouts.get(w.id).exercises[0]
+    empty = workouts.add_set(w.id, bench.id)
+    workouts.update_set(empty.id, {"weight": None, "reps": None, "done": True})
+    plank = workouts.add_exercise(w.id, "plank")  # only a ticked empty set
+    workouts.update_set(plank.sets[0].id, {"done": True})
+    result = workouts.finish(w.id)
+    assert [e.exercise_key for e in result.exercises] == ["bench_press"]
+    assert [(s.weight, s.reps) for s in result.exercises[0].sets] == [(60.0, 8)]
+
+
+def test_finish_with_only_empty_done_sets_deletes_the_workout(workouts):
+    w = workouts.start([])
+    ex = workouts.add_exercise(w.id, "run")
+    workouts.update_set(ex.sets[0].id, {"done": True})
+    assert workouts.finish(w.id) is None
+    with pytest.raises(NotFound):
+        workouts.get(w.id)
+
+
+def test_finish_keeps_done_set_with_any_applicable_value(workouts):
+    w = workouts.start([])
+    ex = workouts.add_exercise(w.id, "run")
+    workouts.update_set(ex.sets[0].id, {"duration": 600, "done": True})
+    result = workouts.finish(w.id)
+    assert [(s.distance, s.duration) for s in result.exercises[0].sets] == [(None, 600)]

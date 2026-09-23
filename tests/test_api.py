@@ -85,7 +85,9 @@ def test_finish_empty_reopen_and_delete(client):
     client.patch(f"/api/sets/{sid}", json={"reps": 10, "done": True})
     client.post(f"/api/workouts/{w['id']}/finish")
     assert client.patch(f"/api/sets/{sid}", json={"reps": 11}).status_code == 409
-    assert client.post(f"/api/workouts/{w['id']}/reopen").json()["ended_at"] is None
+    reopened = client.post(f"/api/workouts/{w['id']}/reopen").json()
+    assert reopened["ended_at"] is None and reopened["reopened"] is True
+    assert client.get("/api/workouts/open").json()["reopened"] is True
     assert client.delete(f"/api/workouts/{w['id']}").status_code == 204
 
 
@@ -186,3 +188,25 @@ def test_units_round_trip_kg_km_to_lb_mi(client):
     sets = [ex["sets"][0] for ex in client.get(f"/api/workouts/{w['id']}").json()["exercises"]]
     assert sets[0]["weight"] == pytest.approx(220.46, abs=0.01)
     assert sets[1]["distance"] == pytest.approx(3.107, abs=0.001)
+
+
+def test_ui_cache_headers(tmp_path, config_dir, now):
+    from fastapi.testclient import TestClient
+
+    from config import Settings
+    from main import build_app
+
+    web = tmp_path / "web"
+    (web / "assets").mkdir(parents=True)
+    (web / "index.html").write_text("<!doctype html><title>Apollo</title>")
+    (web / "manifest.webmanifest").write_text("{}")
+    (web / "assets" / "x.js").write_text("console.log(1)")
+    settings = Settings(DB_PATH=str(tmp_path / "ui.db"), CONFIG_DIR=str(config_dir), WEB_DIR=str(web))
+    with TestClient(build_app(settings, now_fn=now)) as c:
+        for path in ("/ui/", "/ui/index.html", "/ui/manifest.webmanifest"):
+            r = c.get(path)
+            assert r.status_code == 200, path
+            assert r.headers["cache-control"] == "no-cache", path
+        r = c.get("/ui/assets/x.js")
+        assert r.status_code == 200
+        assert r.headers["cache-control"] == "public, max-age=31536000, immutable"

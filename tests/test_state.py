@@ -28,8 +28,9 @@ def _workout(conn, ended=None):
 def test_migrate_creates_tables_and_is_idempotent(db):
     names = {r[0] for r in db.query("SELECT name FROM sqlite_master WHERE type='table'")}
     assert TABLES <= names
-    assert db.migrate() == 1
-    assert db.query_one("SELECT COUNT(*) FROM schema_migrations")[0] == 1
+    latest = len(list(MIGRATIONS_DIR.glob("*.sql")))
+    assert db.migrate() == latest
+    assert db.query_one("SELECT COUNT(*) FROM schema_migrations")[0] == latest
 
 
 def test_only_one_open_workout(db):
@@ -67,6 +68,24 @@ def test_rows_are_mappings(db):
         _workout(conn)
     row = db.query_one("SELECT local_date FROM workout")
     assert row["local_date"] == "2026-09-22"
+
+
+def test_reopened_from_migration_applies_to_an_existing_db(tmp_path):
+    mig_dir = tmp_path / "migrations"
+    mig_dir.mkdir()
+    (mig_dir / "001_initial.sql").write_text((MIGRATIONS_DIR / "001_initial.sql").read_text())
+    database = Database(str(tmp_path / "old.db"))
+    try:
+        assert database.migrate(mig_dir) == 1
+        with database.tx() as conn:
+            workout_id = _workout(conn, ended="2026-09-22T19:00:00+00:00")
+        assert database.migrate() >= 2
+        columns = {r["name"] for r in database.query("PRAGMA table_info(workout)")}
+        assert "reopened_from" in columns
+        row = database.query_one("SELECT reopened_from FROM workout WHERE id = ?", (workout_id,))
+        assert row["reopened_from"] is None
+    finally:
+        database.close()
 
 
 def test_failed_migration_leaves_no_partial_schema(tmp_path):

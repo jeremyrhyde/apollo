@@ -264,6 +264,20 @@ def _build_calendar_router() -> APIRouter:
 # ------------------------------------------------------------------ app
 
 
+class _UIFiles(StaticFiles):
+    """The built UI. Vite's hashed files under assets/ never change, so they
+    cache forever; everything else (index.html, the manifest) is revalidated
+    on every load so a new build is picked up."""
+
+    def file_response(self, full_path: Any, stat_result: Any, scope: Any, status_code: int = 200) -> Response:
+        response = super().file_response(full_path, stat_result, scope, status_code)
+        relative = Path(full_path).resolve().relative_to(Path(self.directory).resolve())
+        response.headers["Cache-Control"] = (
+            "public, max-age=31536000, immutable" if relative.parts[0] == "assets" else "no-cache"
+        )
+        return response
+
+
 def create_app(services: Services, *, lifespan: Any = None, mount_static: bool = True) -> FastAPI:
     app = FastAPI(title="Apollo", lifespan=lifespan)
     app.state.services = services
@@ -289,6 +303,6 @@ def create_app(services: Services, *, lifespan: Any = None, mount_static: bool =
 
     web_dir = Path(services.settings.WEB_DIR)
     if mount_static and web_dir.is_dir():
-        app.mount("/ui", StaticFiles(directory=web_dir, html=True), name="ui")
+        app.mount("/ui", _UIFiles(directory=web_dir, html=True), name="ui")
 
     return app

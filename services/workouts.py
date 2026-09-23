@@ -2,7 +2,8 @@
 
 All values are SI. Rules (spec §5):
 - At most one open workout (DB-enforced; surfaced as Conflict).
-- A set counts only when done; finishing drops undone sets and empty exercises.
+- A set counts only when done; finishing drops undone sets, done sets with
+  no values, and empty exercises.
 - Prefill copies the done sets of the most recent *finished* workout that
   contained the exercise, as new undone sets.
 - Names, metric fields and muscle groups are snapshotted per exercise.
@@ -80,6 +81,8 @@ class WorkoutService:
             if row is None:
                 return None
             workout = self._load(conn, row["id"])
+        if workout.reopened:
+            return workout  # an edit in progress, not an abandoned session
         last_activity = max(from_iso(row["started_at"]), from_iso(row["updated_at"]))
         idle_h = (self.clock.now() - last_activity).total_seconds() / 3600
         return workout.model_copy(update={"stale": idle_h > self.stale_hours})
@@ -209,6 +212,16 @@ class WorkoutService:
                      (SELECT id FROM workout_exercise WHERE workout_id = ?)""",
                 (workout_id,),
             )
+            # A ticked set with none of its exercise's fields filled is noise.
+            for we in conn.execute(
+                "SELECT id, metric_fields FROM workout_exercise WHERE workout_id = ?", (workout_id,)
+            ).fetchall():
+                empty = " AND ".join(
+                    f"{STORAGE_COLUMNS[f]} IS NULL" for f in we["metric_fields"].split(",")
+                )
+                conn.execute(
+                    f"DELETE FROM workout_set WHERE workout_exercise_id = ? AND {empty}", (we["id"],)
+                )
             conn.execute(
                 """DELETE FROM workout_exercise WHERE workout_id = ? AND NOT EXISTS
                      (SELECT 1 FROM workout_set s WHERE s.workout_exercise_id = workout_exercise.id)""",
@@ -222,7 +235,7 @@ class WorkoutService:
                 result = None
             else:
                 conn.execute(
-                    "UPDATE workout SET ended_at = ?, updated_at = ? WHERE id = ?",
+                    "UPDATE workout SET ended_at = ?, reopened_from = NULL, updated_at = ? WHERE id = ?",
                     (ended_at, self.clock.now_iso(), workout_id),
                 )
                 result = self._load(conn, workout_id)
@@ -241,7 +254,8 @@ class WorkoutService:
                 if conn.execute("SELECT 1 FROM workout WHERE ended_at IS NULL").fetchone():
                     raise Conflict("another workout is in progress; finish or discard it first")
                 conn.execute(
-                    "UPDATE workout SET ended_at = NULL, updated_at = ? WHERE id = ?",
+                    "UPDATE workout SET reopened_from = ended_at, ended_at = NULL, updated_at = ?"
+                    " WHERE id = ?",
                     (self.clock.now_iso(), workout_id),
                 )
                 return self._load(conn, workout_id)
@@ -407,4 +421,5 @@ class WorkoutService:
             notes=row["notes"],
             focus=focus,
             exercises=exercises,
+            reopened=row["reopened_from"] is not None,
         )

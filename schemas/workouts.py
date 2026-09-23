@@ -41,6 +41,7 @@ class WorkoutOut(BaseModel):
     notes: str | None = None
     focus: list[str]
     exercises: list[ExerciseOut]
+    reopened: bool = False  # a finished workout opened again for editing
     stale: bool = False
 
 
