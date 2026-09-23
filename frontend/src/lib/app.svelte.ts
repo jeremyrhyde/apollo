@@ -1,7 +1,7 @@
 // App-wide state loaded once at boot: catalog (YAML), settings (DB), and the
 // server's "today" (timezone + day-start hour applied).
 
-import { api } from './api';
+import { api, ApiError } from './api';
 import type { Catalog, Kind, Settings } from './types';
 
 interface AppState {
@@ -35,7 +35,9 @@ export async function loadApp(): Promise<void> {
     applyColors(catalog.colors);
     app.ready = true;
   } catch (e) {
-    app.error = `Could not reach the Apollo server (${(e as Error).message}).`;
+    app.error = e instanceof ApiError && e.status === 0
+      ? 'Could not reach the Apollo server.'
+      : `Could not reach the Apollo server (${(e as Error).message}).`;
   }
 }
 

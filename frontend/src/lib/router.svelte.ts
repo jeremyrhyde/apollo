@@ -31,9 +31,9 @@ function apply(route: Route, direction: 'forward' | 'back', animate: boolean): v
 type SwipePopStateEvent = PopStateEvent & { hasUAVisualTransition?: boolean };
 
 export function initRouter(): () => void {
-  // A reload keeps the tab's history.state (unlike sessionStorage), so an
-  // existing numeric idx means we're re-entering an existing history entry,
-  // not starting a fresh one — leave it alone so back/forward still work.
+  // A reload keeps the tab's history.state, so an existing numeric idx means
+  // we're re-entering an existing history entry, not starting a fresh one —
+  // leave it alone so back/forward still work.
   const existingIdx = typeof history.state?.idx === 'number' ? (history.state.idx as number) : null;
   index = existingIdx ?? 0;
   if (!location.hash) {
