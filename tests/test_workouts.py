@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import pytest
 
 from services.errors import Conflict, Invalid, NotFound
@@ -162,3 +164,118 @@ def test_delete_set_and_exercise(workouts):
 def test_get_missing_workout_not_found(workouts):
     with pytest.raises(NotFound):
         workouts.get(42)
+
+
+def test_finish_drops_undone_sets_and_empty_exercises(workouts):
+    w = workouts.start([])
+    log_exercise(workouts, w.id, "bench_press", [{"weight": 60.0, "reps": 8}])
+    bench = workouts.get(w.id).exercises[0]
+    workouts.add_set(w.id, bench.id)              # second set, never ticked
+    workouts.add_exercise(w.id, "plank")          # exercise with nothing ticked
+    result = workouts.finish(w.id)
+    assert result is not None and result.ended_at is not None
+    assert [e.exercise_key for e in result.exercises] == ["bench_press"]
+    assert len(result.exercises[0].sets) == 1
+
+
+def test_finish_with_nothing_done_deletes_the_workout(workouts):
+    w = workouts.start([])
+    workouts.add_exercise(w.id, "plank")
+    assert workouts.finish(w.id) is None
+    with pytest.raises(NotFound):
+        workouts.get(w.id)
+
+
+def test_finish_publishes_event(env, workouts):
+    seen = []
+    env.bus.subscribe("workout.finished", lambda name, payload: seen.append(payload))
+    w = workouts.start([])
+    log_exercise(workouts, w.id, "pull_up", [{"reps": 10}])
+    workouts.finish(w.id)
+    assert seen == [{"id": w.id}]
+
+
+def test_finish_at_last_activity(workouts, now):
+    w = workouts.start([])
+    now.advance(minutes=10)
+    log_exercise(workouts, w.id, "pull_up", [{"reps": 10}])
+    now.advance(hours=20)
+    result = workouts.finish(w.id, end_at_last_activity=True)
+    assert result.ended_at == "2026-09-22T18:10:00+00:00"
+
+
+def test_finish_twice_conflicts(workouts):
+    w = workouts.start([])
+    log_exercise(workouts, w.id, "pull_up", [{"reps": 10}])
+    workouts.finish(w.id)
+    with pytest.raises(Conflict):
+        workouts.finish(w.id)
+
+
+def test_reopen_edit_and_refinish(workouts, now):
+    w = workouts.start([])
+    log_exercise(workouts, w.id, "pull_up", [{"reps": 10}])
+    workouts.finish(w.id)
+    now.advance(days=1)
+    reopened = workouts.reopen(w.id)
+    assert reopened.ended_at is None and reopened.local_date == "2026-09-22"
+    workouts.update_set(reopened.exercises[0].sets[0].id, {"reps": 12})
+    again = workouts.finish(w.id)
+    assert again.exercises[0].sets[0].reps == 12
+
+
+def test_reopen_conflicts_when_another_is_open(workouts):
+    w = workouts.start([])
+    log_exercise(workouts, w.id, "pull_up", [{"reps": 10}])
+    workouts.finish(w.id)
+    workouts.start([])
+    with pytest.raises(Conflict):
+        workouts.reopen(w.id)
+
+
+def test_reopen_open_workout_conflicts(workouts):
+    w = workouts.start([])
+    with pytest.raises(Conflict):
+        workouts.reopen(w.id)
+
+
+def test_delete_workout(workouts):
+    w = workouts.start([])
+    workouts.delete(w.id)
+    assert workouts.get_open() is None
+    with pytest.raises(NotFound):
+        workouts.delete(w.id)
+
+
+def test_focus_first_appearance_order(workouts):
+    w = workouts.start([])
+    for key in ("bench_press", "barbell_row", "bench_press", "squat"):
+        workouts.add_exercise(w.id, key)
+    assert workouts.get(w.id).focus == ["chest", "back", "legs", "glutes"]
+
+
+def test_history_ranges_and_summary(workouts, now):
+    def finished_on(dt, key="pull_up"):
+        now.dt = dt
+        w = workouts.start([])
+        log_exercise(workouts, w.id, key, [{"reps": 10}, {"reps": 8}])
+        now.advance(minutes=45)
+        workouts.finish(w.id)
+        return w.id
+
+    old = finished_on(datetime(2026, 8, 13, 18, 0, tzinfo=UTC))    # 40 days before
+    mid = finished_on(datetime(2026, 9, 12, 18, 0, tzinfo=UTC))    # 10 days before
+    new = finished_on(datetime(2026, 9, 22, 18, 0, tzinfo=UTC), "bench_press")
+    workouts.start([])                                             # open — never listed
+    assert [s.id for s in workouts.history("1W")] == [new]
+    assert [s.id for s in workouts.history("1M")] == [new, mid]
+    assert [s.id for s in workouts.history("1Y")] == [new, mid, old]
+    summary = workouts.history("1W")[0]
+    assert (summary.duration_s, summary.focus, summary.exercise_count, summary.set_count) == (2700, ["chest"], 1, 2)
+
+
+def test_get_open_flags_stale(workouts, now):
+    workouts.start([])
+    assert workouts.get_open().stale is False
+    now.advance(hours=13)
+    assert workouts.get_open().stale is True

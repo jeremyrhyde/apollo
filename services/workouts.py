@@ -15,9 +15,9 @@ from typing import Any
 
 from core.events import EventBus
 from core.state import Database
-from schemas.workouts import ExerciseOut, SetOut, WorkoutOut
+from schemas.workouts import ExerciseOut, SetOut, WorkoutOut, WorkoutSummary
 from services.catalog import Catalog
-from services.clock import Clock
+from services.clock import Clock, from_iso
 from services.errors import Conflict, Invalid, NotFound
 from services.units import STORAGE_COLUMNS
 
@@ -78,7 +78,7 @@ class WorkoutService:
             if row is None:
                 return None
             workout = self._load(conn, row["id"])
-        age_h = (self.clock.now() - _parse(workout.started_at)).total_seconds() / 3600
+        age_h = (self.clock.now() - from_iso(workout.started_at)).total_seconds() / 3600
         return workout.model_copy(update={"stale": age_h > self.stale_hours})
 
     # ------------------------------------------------------------------ logging
@@ -185,6 +185,98 @@ class WorkoutService:
                 raise Conflict("workout is finished; reopen it to edit")
             conn.execute("DELETE FROM workout_set WHERE id = ?", (set_id,))
             self._touch(conn, row["workout_id"])
+
+    # ------------------------------------------------------------------ lifecycle
+
+    def finish(self, workout_id: int, end_at_last_activity: bool = False) -> WorkoutOut | None:
+        """End the workout. Returns None if nothing was done and it was deleted."""
+        with self.db.tx() as conn:
+            row = self._require_open(conn, workout_id)
+            ended_at = self.clock.now_iso()
+            if end_at_last_activity:
+                last = conn.execute(
+                    """SELECT MAX(s.updated_at) FROM workout_set s
+                         JOIN workout_exercise we ON we.id = s.workout_exercise_id
+                        WHERE we.workout_id = ? AND s.done = 1""",
+                    (workout_id,),
+                ).fetchone()[0]
+                ended_at = max(last or row["started_at"], row["started_at"])
+            conn.execute(
+                """DELETE FROM workout_set WHERE done = 0 AND workout_exercise_id IN
+                     (SELECT id FROM workout_exercise WHERE workout_id = ?)""",
+                (workout_id,),
+            )
+            conn.execute(
+                """DELETE FROM workout_exercise WHERE workout_id = ? AND NOT EXISTS
+                     (SELECT 1 FROM workout_set s WHERE s.workout_exercise_id = workout_exercise.id)""",
+                (workout_id,),
+            )
+            remaining = conn.execute(
+                "SELECT COUNT(*) FROM workout_exercise WHERE workout_id = ?", (workout_id,)
+            ).fetchone()[0]
+            if remaining == 0:
+                conn.execute("DELETE FROM workout WHERE id = ?", (workout_id,))
+                result = None
+            else:
+                conn.execute(
+                    "UPDATE workout SET ended_at = ?, updated_at = ? WHERE id = ?",
+                    (ended_at, self.clock.now_iso(), workout_id),
+                )
+                result = self._load(conn, workout_id)
+        if result is not None:
+            self.bus.publish("workout.finished", {"id": workout_id})
+        return result
+
+    def reopen(self, workout_id: int) -> WorkoutOut:
+        try:
+            with self.db.tx() as conn:
+                row = conn.execute("SELECT ended_at FROM workout WHERE id = ?", (workout_id,)).fetchone()
+                if row is None:
+                    raise NotFound(f"workout {workout_id} not found")
+                if row["ended_at"] is None:
+                    raise Conflict("workout is already open")
+                if conn.execute("SELECT 1 FROM workout WHERE ended_at IS NULL").fetchone():
+                    raise Conflict("another workout is in progress; finish or discard it first")
+                conn.execute(
+                    "UPDATE workout SET ended_at = NULL, updated_at = ? WHERE id = ?",
+                    (self.clock.now_iso(), workout_id),
+                )
+                return self._load(conn, workout_id)
+        except sqlite3.IntegrityError as exc:
+            raise Conflict("another workout is in progress; finish or discard it first") from exc
+
+    def delete(self, workout_id: int) -> None:
+        with self.db.tx() as conn:
+            if conn.execute("DELETE FROM workout WHERE id = ?", (workout_id,)).rowcount == 0:
+                raise NotFound(f"workout {workout_id} not found")
+
+    def history(self, range_key: str) -> list[WorkoutSummary]:
+        since = self.clock.range_start(range_key).isoformat()
+        with self.db.read() as conn:
+            rows = conn.execute(
+                """SELECT w.id, w.local_date, w.started_at, w.ended_at,
+                          (SELECT COUNT(*) FROM workout_exercise we WHERE we.workout_id = w.id) AS exercise_count,
+                          (SELECT COUNT(*) FROM workout_set s JOIN workout_exercise we
+                             ON we.id = s.workout_exercise_id WHERE we.workout_id = w.id) AS set_count
+                     FROM workout w
+                    WHERE w.ended_at IS NOT NULL AND w.local_date >= ?
+                    ORDER BY w.started_at DESC""",
+                (since,),
+            ).fetchall()
+            focus = focus_for(conn, [r["id"] for r in rows])
+        return [
+            WorkoutSummary(
+                id=r["id"],
+                local_date=r["local_date"],
+                started_at=r["started_at"],
+                ended_at=r["ended_at"],
+                duration_s=int((from_iso(r["ended_at"]) - from_iso(r["started_at"])).total_seconds()),
+                focus=focus[r["id"]],
+                exercise_count=r["exercise_count"],
+                set_count=r["set_count"],
+            )
+            for r in rows
+        ]
 
     # ------------------------------------------------------------------ helpers
 
@@ -313,9 +405,3 @@ class WorkoutService:
             focus=focus,
             exercises=exercises,
         )
-
-
-def _parse(value: str):
-    from services.clock import from_iso
-
-    return from_iso(value)
