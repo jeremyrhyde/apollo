@@ -9,7 +9,7 @@ export class ApiError extends Error {
   }
 }
 
-function detailOf(body: unknown): string | null {
+export function detailOf(body: unknown): string | null {
   if (!body || typeof body !== 'object' || !('detail' in body)) return null;
   const detail = (body as { detail: unknown }).detail;
   if (typeof detail === 'string') return detail;
@@ -27,14 +27,21 @@ function detailOf(body: unknown): string | null {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    method,
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, {
+      method,
+      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    // Network failure (offline, server down): the browser's TypeError text
+    // isn't meaningful to a user, so surface a readable message instead.
+    throw new ApiError(0, "Can't reach the server");
+  }
   if (res.status === 204) return undefined as T;
   const data: unknown = await res.json().catch(() => null);
-  if (!res.ok) throw new ApiError(res.status, detailOf(data) ?? res.statusText);
+  if (!res.ok) throw new ApiError(res.status, detailOf(data) ?? (res.statusText || `HTTP ${res.status}`));
   return data as T;
 }
 
