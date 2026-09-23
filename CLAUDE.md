@@ -2,31 +2,37 @@
 
 ## Status
 
-Skeleton only. Requirements are not written yet; the first job is working
-them out with the user and recording them in `docs/` before writing code.
+MVP implemented, per `docs/2026-09-22-mvp-spec.md` (plans in `docs/`).
 
 ## Siblings
 
 Apollo follows the layout of `../hermes` and `../hestia` (same author, same
-stack). When a piece is needed, look there first for a working version to
-adapt:
+stack), with one deliberate difference: the frontend is Svelte, not Alpine
+(see below). When a backend piece is needed, look at the siblings first for a
+working version to adapt:
 
 - `hermes/core/{events,websocket,state}.py` — event bus, WebSocket relay,
-  aiosqlite store with forward-only migrations (`services/migrations/`).
+  migrations pattern (Apollo's DB is stdlib `sqlite3`, forward-only
+  migrations in `core/migrations/`).
 - `hermes/config.py` — richly documented `Settings`, the model to follow.
-- `hestia/web/` — the fuller UI: tokens, PWA icons, kiosk.
 - `hestia/scripts/`, `hestia/deploy/` — origin of this repo's service and
   kiosk installers.
 
 ## Conventions
 
-- Python ≥3.11, managed with `uv`. `make build` / `make test` / `make run`.
+- Python ≥3.11, managed with `uv`. `make build` / `make test` / `make run`
+  build and test both the Python backend and the frontend.
 - Every setting is a field on `config.Settings` and a commented line in
   `.env.example`. Never read `os.environ` at a call site.
 - A hand-edited YAML config gets a committed `<name>.yaml.example`; the real
   file is gitignored.
 - API: one `_build_<area>_router()` per area in `core/api.py`; shared objects
-  live on `app.state`, set up in `main.py`'s lifespan.
-- Web UI: no build step. Alpine.js from the CDN; all colors, radii, spacing,
-  type sizes, and durations are tokens in `web/style.css` `:root`.
+  live on `app.state`, set up in `main.py`'s lifespan. API is served under
+  `/api`.
+- Web UI: Svelte 5 (runes only) + Vite + TypeScript in `frontend/`, built to
+  `frontend/dist` and served at `/ui`. All fetches go through
+  `frontend/src/lib/api.ts`. Design tokens (colors, radii, spacing, type
+  sizes, durations) live in `frontend/src/styles/tokens.css`; no hex values
+  in components. Tap targets are at least `var(--tap-min)`; inputs are at
+  least 16px to avoid iOS zoom-on-focus.
 - Design docs: `docs/YYYY-MM-DD-<topic>-spec.md`, then `-plan.md`.

@@ -144,7 +144,11 @@ health:
 .PHONY: test
 test:
 	$(PYTEST) -v
-	@if [ -d $(FRONTEND)/node_modules ]; then cd $(FRONTEND) && $(NPM) test; fi
+	@if [ -d $(FRONTEND)/node_modules ]; then \
+		cd $(FRONTEND) && $(NPM) test; \
+	else \
+		echo "Skipping vitest: $(FRONTEND)/node_modules not found. Run 'make build' first."; \
+	fi
 
 # ---------------------------------------------------------------------------
 # Background service — see scripts/install-server.sh
