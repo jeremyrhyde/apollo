@@ -184,5 +184,5 @@
     transition: background var(--transition-fast), border-color var(--transition-fast);
   }
   .type.flagged { border-color: var(--color-warn); }
-  .type.on { background: var(--color-selfcare); border-color: var(--color-selfcare); color: var(--color-on-accent); font-weight: 600; }
+  .type.on { background: var(--color-selfcare); border-color: var(--color-selfcare); color: var(--color-on-kind); font-weight: 600; }
 </style>

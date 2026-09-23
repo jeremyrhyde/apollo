@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
+  import ConfigNotice from './ConfigNotice.svelte';
   import Icon from './Icon.svelte';
   import { titleCase } from '../lib/format';
   import { dur } from '../lib/motion';
@@ -65,6 +66,8 @@
     </label>
   </div>
 
+  <ConfigNotice />
+
   {#if recent.length}
     <p class="section-title">Recent</p>
     <div class="list">
@@ -78,7 +81,11 @@
       {#each list as e (e.key)}<button class="item" onclick={() => pick(e.key)}>{e.name}</button>{/each}
     </div>
   {:else}
-    <p class="muted">No exercise matches “{search}”. Add it to config/exercises.yaml.</p>
+    {#if all.length === 0 && !needle}
+      <p class="muted">No exercises configured — add them to config/exercises.yaml.</p>
+    {:else}
+      <p class="muted">No exercise matches “{search}”. Add it to config/exercises.yaml.</p>
+    {/if}
   {/each}
 </div>
 

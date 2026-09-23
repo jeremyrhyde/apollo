@@ -1,5 +1,6 @@
 <script lang="ts">
   import Calendar from '../../components/Calendar.svelte';
+  import ConfigNotice from '../../components/ConfigNotice.svelte';
   import Icon from '../../components/Icon.svelte';
   import { api } from '../../lib/api';
   import { app } from '../../lib/app.svelte';
@@ -36,6 +37,8 @@
 </script>
 
 <header class="page-head"><h1>Self-care</h1></header>
+
+<ConfigNotice />
 
 <button class="btn primary big" onclick={() => navigate(['selfcare', 'log'])}><Icon name="plus" /> Log skincare</button>
 

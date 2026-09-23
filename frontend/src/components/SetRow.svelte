@@ -244,7 +244,7 @@
     border-radius: var(--radius-pill); border: 2px solid var(--color-border); background: none;
     color: var(--color-text-faint); cursor: pointer; transition: background var(--transition-fast), border-color var(--transition-fast);
   }
-  .tick.on { background: var(--color-workout); border-color: var(--color-workout); color: var(--color-on-accent); animation: pop var(--transition); }
+  .tick.on { background: var(--color-workout); border-color: var(--color-workout); color: var(--color-on-kind); animation: pop var(--transition); }
   .tick-static { color: var(--color-workout); display: inline-flex; align-items: center; }
   @keyframes pop { 50% { transform: scale(1.15); } }
 </style>
