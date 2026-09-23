@@ -83,3 +83,30 @@ def test_yaml_syntax_error_reported(tmp_path):
 def test_non_mapping_top_level_reported(tmp_path):
     c = load_catalog(_write(tmp_path / "c", apollo="- a list"))
     assert c.errors == ("apollo.yaml: top level must be a mapping",)
+
+
+def test_duplicate_top_level_key_reported(tmp_path):
+    apollo = "timezone: America/New_York\ntimezone: America/Chicago\n"
+    c = load_catalog(_write(tmp_path / "c", apollo=apollo, exercises=EXERCISES, selfcare=SELFCARE))
+    assert len(c.errors) == 1
+    assert c.errors[0].startswith("apollo.yaml: ")
+    assert "timezone" in c.errors[0]
+    assert c.exercise("bench_press") is not None   # the good ones still load
+
+
+def test_duplicate_nested_key_reported(tmp_path):
+    bad = """
+metric_types: {weight_reps: {fields: [weight, reps]}}
+muscle_groups: [chest]
+exercises:
+  - key: bench_press
+    name: Bench
+    name: Other
+    group: chest
+    type: weight_reps
+"""
+    c = load_catalog(_write(tmp_path / "c", exercises=bad, selfcare=SELFCARE))
+    assert len(c.errors) == 1
+    assert c.errors[0].startswith("exercises.yaml: ")
+    assert "name" in c.errors[0]
+    assert c.category("skincare") is not None      # the good ones still load

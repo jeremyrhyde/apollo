@@ -65,6 +65,26 @@ _FILES: dict[str, tuple[str, type[BaseModel]]] = {
 }
 
 
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """SafeLoader that rejects a mapping (at any nesting level) with a repeated key.
+
+    PyYAML otherwise silently keeps the last value, which would hide a typo'd
+    duplicate in the YAML instead of reporting it.
+    """
+
+    def construct_mapping(self, node, deep=False):
+        seen: set[object] = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if key in seen:
+                line = key_node.start_mark.line + 1
+                raise yaml.constructor.ConstructorError(
+                    problem=f"duplicate key {key!r} at line {line}"
+                )
+            seen.add(key)
+        return super().construct_mapping(node, deep)
+
+
 def _describe(exc: Exception) -> str:
     if isinstance(exc, ValidationError):
         parts = []
@@ -82,7 +102,7 @@ def load_catalog(config_dir: str | Path) -> Catalog:
     for attr, (filename, model) in _FILES.items():
         path = Path(config_dir) / filename
         try:
-            raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+            raw = yaml.load(path.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
             if raw is None:
                 raw = {}
             if not isinstance(raw, dict):
