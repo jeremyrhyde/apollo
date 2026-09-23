@@ -55,7 +55,7 @@ input, select, textarea { font-size: max(16px, var(--text-md)); } /* no iOS zoom
 .btn.danger { background: none; border-color: var(--color-danger); color: var(--color-danger); }
 .btn.big { min-height: 56px; font-size: var(--text-lg); width: 100%; border-radius: var(--radius-lg); }
 .btn.block { width: 100%; }
-.btn.small { min-height: 32px; padding: 0 var(--space-3); font-size: var(--text-sm); }
+.btn.small { min-height: var(--tap-min); padding: 0 var(--space-3); font-size: var(--text-sm); }
 
 .icon-btn {
   display: inline-grid; place-items: center; min-width: var(--tap-min); min-height: var(--tap-min);
@@ -88,7 +88,7 @@ button.card { cursor: pointer; width: 100%; }
 
 .segmented { display: inline-flex; padding: 3px; gap: 2px; background: var(--color-surface-2); border-radius: var(--radius-md); }
 .segmented button {
-  min-height: 36px; padding: 0 var(--space-3); border: 0; border-radius: calc(var(--radius-md) - 3px);
+  min-height: var(--tap-min); padding: 0 var(--space-3); border: 0; border-radius: calc(var(--radius-md) - 3px);
   background: none; color: var(--color-text-muted); cursor: pointer; font-size: var(--text-sm);
 }
 .segmented button.on { background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-1); }

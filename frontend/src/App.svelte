@@ -3,7 +3,7 @@
   import TabBar from './components/TabBar.svelte';
   import Toasts from './components/Toast.svelte';
   import { app, loadApp, refreshToday } from './lib/app.svelte';
-  import { initRouter, router } from './lib/router.svelte';
+  import { initRouter, navigate, router } from './lib/router.svelte';
   import CalendarScreen from './screens/calendar/CalendarScreen.svelte';
   import DayScreen from './screens/calendar/DayScreen.svelte';
   import ActiveWorkout from './screens/workouts/ActiveWorkout.svelte';
@@ -37,6 +37,57 @@
   function numeric(segment: string | undefined): number | null {
     return segment !== undefined && /^\d+$/.test(segment) ? Number(segment) : null;
   }
+
+  // Every recognized route resolves to exactly one of these; anything else
+  // (a typo'd tab, a non-numeric detail id, a truncated /calendar/day) is
+  // `null` and gets redirected to the calendar tab below, so the address bar
+  // never shows a route with nothing behind it.
+  type Screen =
+    | { kind: 'calendar' }
+    | { kind: 'day'; date: string }
+    | { kind: 'workouts-hub' }
+    | { kind: 'workouts-active' }
+    | { kind: 'workouts-history' }
+    | { kind: 'workout-detail'; id: number }
+    | { kind: 'selfcare-hub' }
+    | { kind: 'selfcare-log'; id?: number }
+    | { kind: 'selfcare-history' }
+    | { kind: 'selfcare-detail'; id: number }
+    | { kind: 'settings' };
+
+  function matchRoute(currentTab: string, segments: string[]): Screen | null {
+    if (currentTab === 'calendar') {
+      if (segments.length === 1) return { kind: 'calendar' };
+      if (segments[1] === 'day' && segments[2]) return { kind: 'day', date: segments[2] };
+      return null;
+    }
+    if (currentTab === 'workouts') {
+      if (segments.length === 1) return { kind: 'workouts-hub' };
+      if (segments[1] === 'active') return { kind: 'workouts-active' };
+      if (segments[1] === 'history') return { kind: 'workouts-history' };
+      const id = numeric(segments[1]);
+      if (segments.length === 2 && id !== null) return { kind: 'workout-detail', id };
+      return null;
+    }
+    if (currentTab === 'selfcare') {
+      if (segments.length === 1) return { kind: 'selfcare-hub' };
+      if (segments[1] === 'log') return { kind: 'selfcare-log', id: numeric(segments[2]) ?? undefined };
+      if (segments[1] === 'history') return { kind: 'selfcare-history' };
+      const id = numeric(segments[1]);
+      if (segments.length === 2 && id !== null) return { kind: 'selfcare-detail', id };
+      return null;
+    }
+    if (currentTab === 'settings') {
+      return segments.length === 1 ? { kind: 'settings' } : null;
+    }
+    return null;
+  }
+
+  const screen = $derived(matchRoute(tab, path));
+
+  $effect(() => {
+    if (app.ready && !screen) navigate(['calendar'], {}, { replace: true });
+  });
 </script>
 
 <main class="screen">
@@ -51,28 +102,28 @@
     </div>
   {:else}
     {#key screenKey}
-      {#if tab === 'calendar' && path[1] === 'day' && path[2]}
-        <DayScreen date={path[2]} kind={query.kind ?? 'all'} />
-      {:else if tab === 'workouts' && path[1] === 'active'}
-        <ActiveWorkout editing={query.edit === '1'} />
-      {:else if tab === 'workouts' && path[1] === 'history'}
-        <WorkoutHistory range={query.range} />
-      {:else if tab === 'workouts' && numeric(path[1]) !== null}
-        <WorkoutDetail id={numeric(path[1])!} />
-      {:else if tab === 'workouts'}
-        <WorkoutsHub />
-      {:else if tab === 'selfcare' && path[1] === 'log'}
-        <SelfcareLog id={numeric(path[2]) ?? undefined} initialDate={query.date} />
-      {:else if tab === 'selfcare' && path[1] === 'history'}
-        <SelfcareHistory range={query.range} />
-      {:else if tab === 'selfcare' && numeric(path[1]) !== null}
-        <SelfcareDetail id={numeric(path[1])!} />
-      {:else if tab === 'selfcare'}
-        <SelfcareHub />
-      {:else if tab === 'settings'}
-        <SettingsScreen />
-      {:else}
+      {#if screen?.kind === 'calendar'}
         <CalendarScreen {query} />
+      {:else if screen?.kind === 'day'}
+        <DayScreen date={screen.date} kind={query.kind ?? 'all'} />
+      {:else if screen?.kind === 'workouts-hub'}
+        <WorkoutsHub />
+      {:else if screen?.kind === 'workouts-active'}
+        <ActiveWorkout editing={query.edit === '1'} />
+      {:else if screen?.kind === 'workouts-history'}
+        <WorkoutHistory range={query.range} />
+      {:else if screen?.kind === 'workout-detail'}
+        <WorkoutDetail id={screen.id} />
+      {:else if screen?.kind === 'selfcare-hub'}
+        <SelfcareHub />
+      {:else if screen?.kind === 'selfcare-log'}
+        <SelfcareLog id={screen.id} initialDate={query.date} />
+      {:else if screen?.kind === 'selfcare-history'}
+        <SelfcareHistory range={query.range} />
+      {:else if screen?.kind === 'selfcare-detail'}
+        <SelfcareDetail id={screen.id} />
+      {:else if screen?.kind === 'settings'}
+        <SettingsScreen />
       {/if}
     {/key}
   {/if}

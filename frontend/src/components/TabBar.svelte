@@ -1,6 +1,6 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
-  import { navigate } from '../lib/router.svelte';
+  import { navigate, router } from '../lib/router.svelte';
 
   let { active }: { active: string } = $props();
 
@@ -10,6 +10,15 @@
     { key: 'selfcare', label: 'Self-care', icon: 'sparkles' },
     { key: 'settings', label: 'Settings', icon: 'sliders' },
   ];
+
+  function select(key: string): void {
+    const alreadyOnTab = active === key;
+    // Already at this tab's root: no-op, don't push a duplicate entry.
+    if (alreadyOnTab && router.route.path.length === 1) return;
+    // Returning to a tab's root from one of its subroutes replaces rather
+    // than pushes, since it's a reset within the section, not a new place.
+    navigate([key], {}, { replace: alreadyOnTab });
+  }
 </script>
 
 <nav class="tabbar" aria-label="Sections">
@@ -17,7 +26,7 @@
     <button
       class:active={active === tab.key}
       aria-current={active === tab.key ? 'page' : undefined}
-      onclick={() => navigate([tab.key])}>
+      onclick={() => select(tab.key)}>
       <Icon name={tab.icon} size={22} />
       <span>{tab.label}</span>
     </button>
