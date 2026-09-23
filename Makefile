@@ -41,7 +41,7 @@ help:
 	@echo "Run:"
 	@echo "  make run-dev          Start with auto-reload (HOST/PORT overridable)"
 	@echo "  make open             Open the web UI in a browser"
-	@echo "  make health           curl /health on a running server"
+	@echo "  make health           curl /api/health on a running server"
 	@echo ""
 	@echo "Tests:"
 	@echo "  make test             Run the pytest suite"
@@ -119,7 +119,7 @@ run:
 
 .PHONY: run-dev
 run-dev:
-	$(UV) run uvicorn main:app --reload --host $(HOST) --port $(PORT)
+	$(UV) run uvicorn main:build_app --factory --reload --host $(HOST) --port $(PORT)
 
 .PHONY: open
 open:
@@ -127,7 +127,7 @@ open:
 
 .PHONY: health
 health:
-	@curl -sS $(APOLLO_HOST)/health && echo ""
+	@curl -sS $(APOLLO_HOST)/api/health && echo ""
 
 # ---------------------------------------------------------------------------
 # Tests

@@ -5,7 +5,7 @@ Apollo's domain.
 
 Present now:
 
-- `api.py` — `create_app()`, routers, static `/ui` mount, `/health`.
+- `api.py` — `create_app()`, routers, static `/ui` mount, `/api/health`.
 
 Expected as Apollo grows (see `hermes/core/` and `hestia/core/` for working
 versions to adapt):
