@@ -1,0 +1,14 @@
+# Apollo — self-care catalog. Edits take effect on restart.
+#
+# `every_days` is optional. With it, the type appears in the Due list
+# (due N days after it was last done). Without it, it is tracked only.
+
+categories:
+  - key: skincare
+    name: Skincare (Face)
+    types:
+      - { key: am_routine,  name: AM routine,  every_days: 1 }
+      - { key: pm_routine,  name: PM routine,  every_days: 1 }
+      - { key: exfoliation, name: Exfoliation, every_days: 7 }
+      - { key: face_mask,   name: Face mask,   every_days: 7 }
+      - { key: retinoid,    name: Retinoid,    every_days: 3 }

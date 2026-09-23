@@ -1,0 +1,47 @@
+# Apollo — exercise catalog. Edits take effect on restart.
+#
+# `key` is permanent: history is tied to it. Change `name` freely.
+# Each exercise sets exactly one of `group` or `groups`.
+# Fields available to metric types: weight, reps, distance, duration.
+
+metric_types:
+  weight_reps:   { fields: [weight, reps] }
+  reps:          { fields: [reps] }
+  time:          { fields: [duration] }
+  distance_time: { fields: [distance, duration] }
+
+muscle_groups: [chest, back, shoulders, biceps, triceps, legs, glutes, core, cardio]
+
+exercises:
+  # chest
+  - { key: bench_press,           name: Bench Press (Barbell),    group: chest,     type: weight_reps }
+  - { key: incline_dumbbell_press, name: Incline Dumbbell Press,  group: chest,     type: weight_reps }
+  - { key: push_up,               name: Push-up,                  group: chest,     type: reps }
+  # back
+  - { key: barbell_row,           name: Barbell Row,              group: back,      type: weight_reps }
+  - { key: lat_pulldown,          name: Lat Pulldown,             group: back,      type: weight_reps }
+  - { key: pull_up,               name: Pull-up,                  group: back,      type: reps }
+  - { key: deadlift,              name: Deadlift,                 groups: [back, legs, glutes], type: weight_reps }
+  # shoulders
+  - { key: overhead_press,        name: Overhead Press,           group: shoulders, type: weight_reps }
+  - { key: lateral_raise,         name: Lateral Raise,            group: shoulders, type: weight_reps }
+  # arms
+  - { key: bicep_curl,            name: Bicep Curl (Dumbbell),    group: biceps,    type: weight_reps }
+  - { key: hammer_curl,           name: Hammer Curl,              group: biceps,    type: weight_reps }
+  - { key: tricep_pushdown,       name: Tricep Pushdown,          group: triceps,   type: weight_reps }
+  - { key: dip,                   name: Dip,                      groups: [triceps, chest], type: reps }
+  # legs
+  - { key: squat,                 name: Back Squat,               groups: [legs, glutes], type: weight_reps }
+  - { key: leg_press,             name: Leg Press,                group: legs,      type: weight_reps }
+  - { key: romanian_deadlift,     name: Romanian Deadlift,        groups: [legs, glutes], type: weight_reps }
+  - { key: lunge,                 name: Walking Lunge,            groups: [legs, glutes], type: weight_reps }
+  - { key: calf_raise,            name: Calf Raise,               group: legs,      type: weight_reps }
+  # core
+  - { key: plank,                 name: Plank,                    group: core,      type: time }
+  - { key: side_plank,            name: Side Plank,               group: core,      type: time }
+  - { key: hanging_leg_raise,     name: Hanging Leg Raise,        group: core,      type: reps }
+  # cardio
+  - { key: run,                   name: Run,                      group: cardio,    type: distance_time }
+  - { key: stair_climb,           name: Stair Climber,            group: cardio,    type: distance_time }
+  - { key: cycle,                 name: Cycling,                  group: cardio,    type: distance_time }
+  - { key: row_erg,               name: Rowing Machine,           group: cardio,    type: distance_time }
