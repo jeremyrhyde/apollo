@@ -116,6 +116,7 @@ class SelfcareService:
         sql = "SELECT * FROM selfcare_session WHERE local_date >= ?"
         params: list[Any] = [since]
         if category is not None:
+            self._category(category)
             sql += " AND category_key = ?"
             params.append(category)
         sql += " ORDER BY local_date DESC, performed_at DESC"

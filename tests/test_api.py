@@ -117,3 +117,72 @@ def test_calendar_and_last_done(client):
 def test_ui_not_mounted_without_build(client):
     assert client.get("/ui/").status_code == 404
     assert client.get("/", follow_redirects=False).headers["location"] == "/ui/"
+
+
+@pytest.mark.parametrize(
+    "method, path, body",
+    [
+        ("patch", "/api/sets/999", {"reps": 1}),
+        ("delete", "/api/sets/999", None),
+        ("get", "/api/selfcare/sessions/999", None),
+        ("patch", "/api/selfcare/sessions/999", {"notes": "x"}),
+        ("delete", "/api/selfcare/sessions/999", None),
+        ("post", "/api/workouts/999/finish", None),
+    ],
+)
+def test_unknown_ids_are_404(client, method, path, body):
+    kwargs = {"json": body} if body is not None else {}
+    r = client.request(method.upper(), path, **kwargs)
+    assert r.status_code == 404 and r.json()["detail"]
+
+
+def test_add_set_to_missing_exercise_is_404(client):
+    w = start(client)
+    assert client.post(f"/api/workouts/{w['id']}/exercises/999/sets").status_code == 404
+
+
+def test_reopen_while_another_open_is_409(client):
+    w = start(client, ["pull_up"])
+    client.patch(f"/api/sets/{w['exercises'][0]['sets'][0]['id']}", json={"reps": 5, "done": True})
+    assert client.post(f"/api/workouts/{w['id']}/finish").json()["deleted"] is False
+    start(client)
+    r = client.post(f"/api/workouts/{w['id']}/reopen")
+    assert r.status_code == 409 and "in progress" in r.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    "path, detail",
+    [
+        ("/api/settings/nope", "unknown setting"),
+        ("/api/settings/distance_unit", "must be one of"),
+    ],
+)
+def test_bad_setting_is_422(client, path, detail):
+    r = client.put(path, json={"value": "furlong"})
+    assert r.status_code == 422 and detail in r.json()["detail"]
+
+
+@pytest.mark.parametrize("kinds", ["meals", "workout,meals", ","])
+def test_bad_calendar_kinds_is_422(client, kinds):
+    r = client.get(f"/api/calendar?from=2026-09-01&to=2026-09-30&kinds={kinds}")
+    assert r.status_code == 422 and "kinds" in r.json()["detail"]
+
+
+def test_unknown_selfcare_category_filter_is_422(client):
+    r = client.get("/api/selfcare/sessions?category=nope")
+    assert r.status_code == 422 and "unknown category" in r.json()["detail"]
+    assert client.get("/api/selfcare/sessions?category=skincare").status_code == 200
+
+
+def test_units_round_trip_kg_km_to_lb_mi(client):
+    client.put("/api/settings/weight_unit", json={"value": "kg"})
+    client.put("/api/settings/distance_unit", json={"value": "km"})
+    w = start(client, ["bench_press", "run"])
+    bench, run = (ex["sets"][0]["id"] for ex in w["exercises"])
+    assert client.patch(f"/api/sets/{bench}", json={"weight": 100}).json()["weight"] == 100.0
+    assert client.patch(f"/api/sets/{run}", json={"distance": 5}).json()["distance"] == 5.0
+    client.put("/api/settings/weight_unit", json={"value": "lb"})
+    client.put("/api/settings/distance_unit", json={"value": "mi"})
+    sets = [ex["sets"][0] for ex in client.get(f"/api/workouts/{w['id']}").json()["exercises"]]
+    assert sets[0]["weight"] == pytest.approx(220.46, abs=0.01)
+    assert sets[1]["distance"] == pytest.approx(3.107, abs=0.001)

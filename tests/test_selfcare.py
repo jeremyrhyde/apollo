@@ -148,7 +148,9 @@ def test_history_range(selfcare):
     assert [s.local_date for s in selfcare.history("1W")] == ["2026-09-22"]
     assert [s.local_date for s in selfcare.history("1M")] == ["2026-09-22", "2026-09-01"]
     assert len(selfcare.history("1Y")) == 3
-    assert selfcare.history("1Y", category="other") == []
+    assert len(selfcare.history("1Y", category="skincare")) == 3
+    with pytest.raises(Invalid, match="unknown category"):
+        selfcare.history("1Y", category="other")
 
 
 def test_due_list_order_and_untracked_last(selfcare):
