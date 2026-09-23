@@ -90,3 +90,19 @@ def env(tmp_path: Path, config_dir: Path, now: FakeNow):
     clock = Clock(catalog.apollo.timezone, catalog.apollo.day_start_hour, now)
     yield SimpleNamespace(catalog=catalog, db=db, clock=clock, bus=EventBus(), now=now)
     db.close()
+
+
+@pytest.fixture
+def client(tmp_path: Path, config_dir: Path, now: FakeNow):
+    from fastapi.testclient import TestClient
+
+    from config import Settings
+    from main import build_app
+
+    settings = Settings(
+        DB_PATH=str(tmp_path / "api.db"),
+        CONFIG_DIR=str(config_dir),
+        WEB_DIR=str(tmp_path / "no-ui"),
+    )
+    with TestClient(build_app(settings, now_fn=now)) as c:
+        yield c
