@@ -5,6 +5,7 @@
   import ConfigNotice from './ConfigNotice.svelte';
   import Icon from './Icon.svelte';
   import { titleCase } from '../lib/format';
+  import { dragToClose } from '../lib/dragToClose';
   import { dur } from '../lib/motion';
   import { readRecent, rememberRecent } from '../lib/recent';
   import type { Catalog, ExerciseDef } from '../lib/types';
@@ -61,9 +62,11 @@
   aria-label="Add exercise"
   tabindex="-1"
   bind:this={sheetEl}
+  use:dragToClose={{ handle: '.top', onclose }}
   transition:fly={{ y: 400, duration: dur(220) }}
 >
   <div class="top">
+    <div class="grabber" aria-hidden="true"></div>
     <div class="head">
       <h2>Add exercise</h2>
       <button class="icon-btn" aria-label="Close" onclick={onclose}><Icon name="x" /></button>
@@ -105,7 +108,9 @@
     display: grid; gap: var(--space-3);
     margin-top: calc(-1 * var(--space-4)); padding: var(--space-4) 0 var(--space-2);
     background: var(--color-surface);
+    touch-action: none; /* dragging here moves the sheet (dragToClose), not the page */
   }
+  .grabber { justify-self: center; width: var(--space-8); height: var(--space-1); border-radius: var(--radius-pill); background: var(--color-border); }
   .head { display: flex; justify-content: space-between; align-items: center; }
   .search { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-muted); }
   .search .input { flex: 1; min-width: 0; }
