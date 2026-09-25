@@ -18,10 +18,26 @@ from schemas.config import (
     ApolloFile,
     Exercise,
     ExercisesFile,
+    Muscle,
     SelfcareCategory,
     SelfcareFile,
     SelfcareType,
 )
+
+# Muscles implied by a muscle *group*, used when an exercise doesn't set
+# `muscles` explicitly (see docs/2026-09-25-muscle-map-spec.md). Order here is
+# the order muscles appear in a derived result.
+GROUP_MUSCLES: dict[str, list[Muscle]] = {
+    "chest": ["chest"],
+    "back": ["upper-back", "lower-back"],
+    "shoulders": ["front-deltoids", "back-deltoids"],
+    "biceps": ["biceps"],
+    "triceps": ["triceps"],
+    "legs": ["quadriceps", "hamstring", "calves"],
+    "glutes": ["gluteal"],
+    "core": ["abs", "obliques"],
+    "cardio": [],
+}
 
 
 @dataclass(frozen=True)
@@ -36,6 +52,18 @@ class Catalog:
 
     def fields_for(self, metric_type: str) -> list[str]:
         return list(self.exercises.metric_types[metric_type].fields)
+
+    def muscles_for(self, ex: Exercise) -> dict[str, list[str]]:
+        """An exercise's resolved muscles: explicit if set, else the
+        de-duplicated union of its groups' muscles, in group order."""
+        if ex.muscles is not None:
+            return {"primary": list(ex.muscles.primary), "secondary": list(ex.muscles.secondary)}
+        primary: list[str] = []
+        for group in ex.muscle_groups:
+            for muscle in GROUP_MUSCLES.get(group, []):
+                if muscle not in primary:
+                    primary.append(muscle)
+        return {"primary": primary, "secondary": []}
 
     def exercises_by_group(self) -> dict[str, list[Exercise]]:
         """Exercises under each muscle group, in muscle_groups order.

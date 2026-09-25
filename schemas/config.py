@@ -9,14 +9,34 @@ not just the first.
 from __future__ import annotations
 
 import re
-from typing import Literal
+from typing import Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, Field, PositiveInt, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PositiveInt,
+    ValidationError,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 FieldName = Literal["weight", "reps", "distance", "duration"]
 KEY_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+# The highlightable regions of the body-map asset (see
+# docs/2026-09-25-muscle-map-spec.md). `head`, `neck`, `knees` and the soleus
+# regions are part of the silhouette but not selectable, so they're absent.
+Muscle = Literal[
+    "biceps", "triceps", "forearm",
+    "front-deltoids", "back-deltoids",
+    "chest", "abs", "obliques",
+    "trapezius", "upper-back", "lower-back",
+    "quadriceps", "hamstring", "gluteal", "adductor", "abductors", "calves",
+]
 
 
 class _Strict(BaseModel):
@@ -43,17 +63,49 @@ class MetricType(_Strict):
         return value
 
 
+class ExerciseMuscles(_Strict):
+    primary: list[Muscle] = Field(min_length=1)
+    secondary: list[Muscle] = []
+
+    @model_validator(mode="after")
+    def _no_duplicates_or_overlap(self) -> "ExerciseMuscles":
+        errors: list[str] = []
+        if len(set(self.primary)) != len(self.primary):
+            errors.append("primary must not repeat a muscle")
+        if len(set(self.secondary)) != len(self.secondary):
+            errors.append("secondary must not repeat a muscle")
+        overlap = sorted(set(self.primary) & set(self.secondary))
+        if overlap:
+            errors.append(f"muscle(s) in both primary and secondary: {', '.join(overlap)}")
+        if errors:
+            raise ValueError("; ".join(errors))
+        return self
+
+
 class Exercise(_Strict):
     key: str
     name: str = Field(min_length=1)
     group: str | None = None
     groups: list[str] | None = None
     type: str
+    muscles: ExerciseMuscles | None = None
 
     @field_validator("key")
     @classmethod
     def _key(cls, value: str) -> str:
         return _check_key(value)
+
+    @field_validator("muscles", mode="before")
+    @classmethod
+    def _muscles_named(cls, value: Any, info: ValidationInfo) -> Any:
+        if value is None or isinstance(value, ExerciseMuscles):
+            return value
+        try:
+            return ExerciseMuscles.model_validate(value)
+        except ValidationError as exc:
+            key = info.data.get("key", "?")
+            detail = "; ".join(err["msg"].removeprefix("Value error, ") for err in exc.errors())
+            raise ValueError(f"exercise {key!r}: {detail}") from exc
 
     @model_validator(mode="after")
     def _one_group_field(self) -> "Exercise":

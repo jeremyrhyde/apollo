@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from schemas.config import ApolloFile, ExercisesFile, SelfcareFile
+from schemas.config import ApolloFile, ExerciseMuscles, ExercisesFile, SelfcareFile
 
 EX_OK = {
     "metric_types": {"weight_reps": {"fields": ["weight", "reps"]}, "time": {"fields": ["duration"]}},
@@ -68,6 +68,50 @@ def test_selfcare_duplicate_type_key():
         SelfcareFile.model_validate(
             {"categories": [{"key": "skincare", "name": "S", "types": [{"key": "a", "name": "A"}, {"key": "a", "name": "B"}]}]}
         )
+
+
+# ------------------------------------------------------------------ muscles
+
+
+def test_exercise_with_valid_muscles():
+    ex = {**EX_OK["exercises"][0], "muscles": {"primary": ["chest"], "secondary": ["front-deltoids", "triceps"]}}
+    f = ExercisesFile.model_validate({**EX_OK, "exercises": [ex]})
+    assert f.exercises[0].muscles.primary == ["chest"]
+    assert f.exercises[0].muscles.secondary == ["front-deltoids", "triceps"]
+
+
+def test_exercise_without_muscles_defaults_to_none():
+    f = ExercisesFile.model_validate(EX_OK)
+    assert f.exercises[0].muscles is None
+
+
+def test_unknown_muscle_name_rejected():
+    ex = {**EX_OK["exercises"][0], "muscles": {"primary": ["lats"]}}
+    with pytest.raises(ValidationError, match="exercise 'bench_press'"):
+        ExercisesFile.model_validate({**EX_OK, "exercises": [ex]})
+
+
+def test_empty_primary_rejected():
+    ex = {**EX_OK["exercises"][0], "muscles": {"primary": []}}
+    with pytest.raises(ValidationError, match="exercise 'bench_press'"):
+        ExercisesFile.model_validate({**EX_OK, "exercises": [ex]})
+
+
+def test_muscle_in_both_lists_rejected():
+    ex = {**EX_OK["exercises"][0], "muscles": {"primary": ["chest"], "secondary": ["chest"]}}
+    with pytest.raises(ValidationError, match=r"exercise 'bench_press'.*both primary and secondary.*chest"):
+        ExercisesFile.model_validate({**EX_OK, "exercises": [ex]})
+
+
+def test_duplicate_muscle_in_list_rejected():
+    ex = {**EX_OK["exercises"][0], "muscles": {"primary": ["chest", "chest"]}}
+    with pytest.raises(ValidationError, match="exercise 'bench_press'.*primary must not repeat"):
+        ExercisesFile.model_validate({**EX_OK, "exercises": [ex]})
+
+
+def test_exercise_muscles_rejects_unknown_extra_key():
+    with pytest.raises(ValidationError):
+        ExerciseMuscles.model_validate({"primary": ["chest"], "tertiary": ["abs"]})
 
 
 def test_apollo_defaults_and_validation():

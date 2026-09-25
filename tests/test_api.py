@@ -17,7 +17,13 @@ def test_catalog_shape(client):
     assert c["metric_types"]["distance_time"] == ["distance", "duration"]
     assert c["muscle_groups"][0] == "chest"
     assert c["exercises_by_group"]["glutes"] == [
-        {"key": "squat", "name": "Back Squat", "type": "weight_reps", "groups": ["legs", "glutes"]}
+        {
+            "key": "squat",
+            "name": "Back Squat",
+            "type": "weight_reps",
+            "groups": ["legs", "glutes"],
+            "muscles": {"primary": ["quadriceps", "hamstring", "calves", "gluteal"], "secondary": []},
+        }
     ]
     assert c["selfcare"][0]["types"][0] == {"key": "am_routine", "name": "AM routine", "every_days": 1}
     assert c["colors"] == {"workout": "#4ade80", "selfcare": "#60a5fa"}

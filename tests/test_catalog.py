@@ -22,6 +22,17 @@ exercises:
   - {key: plank, name: Plank, group: core, type: time}
 """
 
+EXERCISES_WITH_MUSCLES = """
+metric_types: {weight_reps: {fields: [weight, reps]}, time: {fields: [duration]}, distance_time: {fields: [distance, duration]}}
+muscle_groups: [chest, legs, glutes, core, cardio]
+exercises:
+  - {key: bench_press, name: Bench, group: chest, type: weight_reps,
+     muscles: {primary: [chest], secondary: [front-deltoids, triceps]}}
+  - {key: squat, name: Squat, groups: [legs, glutes], type: weight_reps}
+  - {key: plank, name: Plank, group: core, type: time}
+  - {key: run, name: Run, group: cardio, type: distance_time}
+"""
+
 SELFCARE = """
 categories:
   - key: skincare
@@ -34,6 +45,10 @@ def test_repo_config_is_valid():
     catalog = load_catalog(REPO_CONFIG)
     assert catalog.errors == ()
     assert catalog.exercise("bench_press") is not None
+    assert catalog.muscles_for(catalog.exercise("bench_press")) == {
+        "primary": ["chest"],
+        "secondary": ["front-deltoids", "triceps"],
+    }
 
 
 def test_lookups(tmp_path):
@@ -48,6 +63,23 @@ def test_lookups(tmp_path):
     assert c.category("skincare").name == "Skincare (Face)"
     assert c.selfcare_type("skincare", "am_routine").every_days == 1
     assert c.selfcare_type("skincare", "nope") is None
+
+
+def test_muscles_for_explicit_and_derived(tmp_path):
+    c = load_catalog(_write(tmp_path / "c", exercises=EXERCISES_WITH_MUSCLES, selfcare=SELFCARE))
+    assert c.errors == ()
+    assert c.muscles_for(c.exercise("bench_press")) == {
+        "primary": ["chest"],
+        "secondary": ["front-deltoids", "triceps"],
+    }
+    # derived: union of squat's groups' muscles, in group order, secondary empty
+    assert c.muscles_for(c.exercise("squat")) == {
+        "primary": ["quadriceps", "hamstring", "calves", "gluteal"],
+        "secondary": [],
+    }
+    assert c.muscles_for(c.exercise("plank")) == {"primary": ["abs", "obliques"], "secondary": []}
+    # cardio has no derived muscles
+    assert c.muscles_for(c.exercise("run")) == {"primary": [], "secondary": []}
 
 
 def test_empty_files_fall_back_to_defaults(tmp_path):

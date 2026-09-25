@@ -102,7 +102,13 @@ def _build_meta_router() -> APIRouter:
             "muscle_groups": list(c.exercises.muscle_groups),
             "exercises_by_group": {
                 group: [
-                    {"key": e.key, "name": e.name, "type": e.type, "groups": e.muscle_groups}
+                    {
+                        "key": e.key,
+                        "name": e.name,
+                        "type": e.type,
+                        "groups": e.muscle_groups,
+                        "muscles": c.muscles_for(e),
+                    }
                     for e in exercises
                 ]
                 for group, exercises in c.exercises_by_group().items()
