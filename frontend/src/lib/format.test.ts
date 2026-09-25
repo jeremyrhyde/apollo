@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { dueText, formatDuration, formatMinutes, heatLevel, parseDecimal, parseDuration, relativeDays, titleCase } from './format';
+import { dueText, formatDuration, formatMinutes, heatLevel, parseDecimal, parseDuration, relativeDays, setCells, titleCase } from './format';
+import type { WorkoutSet } from './types';
 import type { DueItem } from './types';
 
 const due = (over: Partial<DueItem>): DueItem => ({
@@ -58,5 +59,16 @@ describe('format', () => {
   it('maps counts to heat levels and title-cases', () => {
     expect([0, 1, 2, 3, 9].map(heatLevel)).toEqual([0, 1, 2, 3, 3]);
     expect(titleCase('chest')).toBe('Chest');
+  });
+
+  it('formats a set as cells: reps, then weight/distance, then time', () => {
+    const set = (over: Partial<WorkoutSet>): WorkoutSet => ({
+      id: 1, position: 1, done: true, weight: null, reps: null, distance: null, duration: null, ...over,
+    });
+    expect(setCells(set({ weight: 135, reps: 8 }), ['weight', 'reps'], 'lb', 'mi')).toEqual(['8 reps', '135 lb']);
+    expect(setCells(set({ reps: 1 }), ['reps'], 'lb', 'mi')).toEqual(['1 rep']);
+    expect(setCells(set({ distance: 3.1, duration: 1500 }), ['distance', 'duration'], 'lb', 'mi')).toEqual(['3.1 mi', '25:00']);
+    expect(setCells(set({ duration: 60 }), ['duration'], 'kg', 'km')).toEqual(['1:00']);
+    expect(setCells(set({ weight: 60 }), ['weight', 'reps'], 'kg', 'km')).toEqual(['—', '60 kg']);
   });
 });

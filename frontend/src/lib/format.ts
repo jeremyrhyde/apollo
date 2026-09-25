@@ -1,5 +1,5 @@
 import { diffDays, type ISODate } from './dates';
-import type { DueItem } from './types';
+import type { DueItem, FieldName, WorkoutSet } from './types';
 
 export function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -17,6 +17,21 @@ export function formatDuration(seconds: number | null | undefined): string {
   const m = Math.floor((t % 3600) / 60);
   const s = String(t % 60).padStart(2, '0');
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+}
+
+/** Display order for a set's values: reps first, then the load or distance, then time. */
+const SET_FIELD_ORDER: FieldName[] = ['reps', 'weight', 'distance', 'duration'];
+
+/** A logged set as short text cells, e.g. ["8 reps", "135 lb"]; a missing value is "—". */
+export function setCells(set: WorkoutSet, fields: FieldName[], weightUnit: string, distanceUnit: string): string[] {
+  return SET_FIELD_ORDER.filter((f) => fields.includes(f)).map((f) => {
+    const v = set[f];
+    if (v === null) return '—';
+    if (f === 'reps') return plural(v, 'rep');
+    if (f === 'weight') return `${v} ${weightUnit}`;
+    if (f === 'distance') return `${v} ${distanceUnit}`;
+    return formatDuration(v);
+  });
 }
 
 export function formatMinutes(seconds: number): string {

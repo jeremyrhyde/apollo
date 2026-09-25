@@ -14,16 +14,15 @@
     fields: FieldName[];
     weightUnit: string;
     distanceUnit: string;
-    readonly?: boolean;
     onpatch?: (patch: SetPatch) => void;
     ondelete?: () => void;
   }
 
-  let { set, index, fields, weightUnit, distanceUnit, readonly = false, onpatch, ondelete }: Props = $props();
+  let { set, index, fields, weightUnit, distanceUnit, onpatch, ondelete }: Props = $props();
 
   const weightStep = $derived(weightUnit === 'kg' ? 2.5 : 5);
   const durationPlain = $derived(fields.includes('distance') ? 'minutes' : 'seconds');
-  const canTime = $derived(fields.length === 1 && fields[0] === 'duration' && !readonly);
+  const canTime = $derived(fields.length === 1 && fields[0] === 'duration');
 
   // The timer stores its start instant, not a running counter: iOS suspends
   // JS timers in the background, so an incrementing counter would fall behind.
@@ -69,7 +68,7 @@
 
   // Restored once after mount, not in the `$state` initializer above, which Svelte's lint flags for reading a prop only once.
   onMount(() => {
-    if (!readonly) timerStart = loadTimerStart();
+    timerStart = loadTimerStart();
   });
 
   $effect(() => {
@@ -148,44 +147,35 @@
   );
 </script>
 
-<div class="set" class:done={set.done} class:readonly>
+<div class="set" class:done={set.done}>
   <div class="set-top">
     <span class="num">Set {index + 1}</span>
-    {#if readonly}
-      {#if set.done}<span class="tick-static"><Icon name="check" size={18} /></span>{/if}
-    {:else}
-      <div class="set-actions">
-        <button class="tick" class:on={set.done} aria-pressed={set.done} aria-label="Set done" onclick={toggleDone}>
-          <Icon name="check" size={20} />
-        </button>
-        <button class="icon-btn del" aria-label="Delete set" onclick={handleDelete}><Icon name="x" size={18} /></button>
-      </div>
-    {/if}
+    <div class="set-actions">
+      <button class="tick" class:on={set.done} aria-pressed={set.done} aria-label="Set done" onclick={toggleDone}>
+        <Icon name="check" size={20} />
+      </button>
+      <button class="icon-btn del" aria-label="Delete set" onclick={handleDelete}><Icon name="x" size={18} /></button>
+    </div>
   </div>
   <div class="fields">
     {#each fields as f (f)}
       {#if f === 'weight' || f === 'reps'}
         <div class="stepper">
-          {#if !readonly}
-            <button class="step" aria-label={`Decrease ${f}`} onclick={() => bump(f, f === 'reps' ? -1 : -weightStep)}>
-              <Icon name="minus" size={16} />
-            </button>
-          {/if}
+          <button class="step" aria-label={`Decrease ${f}`} onclick={() => bump(f, f === 'reps' ? -1 : -weightStep)}>
+            <Icon name="minus" size={16} />
+          </button>
           <label class="value">
             <input
               inputmode={f === 'reps' ? 'numeric' : 'decimal'}
               value={set[f] ?? ''}
               placeholder="0"
-              {readonly}
               aria-label={f === 'weight' ? `Weight (${weightUnit})` : 'Reps'}
               onchange={(e) => onNumber(f, e)} />
             <span>{f === 'weight' ? weightUnit : 'reps'}</span>
           </label>
-          {#if !readonly}
-            <button class="step" aria-label={`Increase ${f}`} onclick={() => bump(f, f === 'reps' ? 1 : weightStep)}>
-              <Icon name="plus" size={16} />
-            </button>
-          {/if}
+          <button class="step" aria-label={`Increase ${f}`} onclick={() => bump(f, f === 'reps' ? 1 : weightStep)}>
+            <Icon name="plus" size={16} />
+          </button>
         </div>
       {:else if f === 'distance'}
         <label class="value wide">
@@ -193,7 +183,6 @@
             inputmode="decimal"
             value={set.distance ?? ''}
             placeholder="0.0"
-            {readonly}
             aria-label={`Distance (${distanceUnit})`}
             onchange={(e) => onNumber('distance', e)} />
           <span>{distanceUnit}</span>
@@ -203,7 +192,7 @@
           <input
             value={shownDuration}
             placeholder={durationPlain === 'minutes' ? 'min or h:mm:ss' : 'sec or m:ss'}
-            readonly={readonly || timerStart !== null}
+            readonly={timerStart !== null}
             aria-label="Duration"
             onchange={onDuration} />
           {#if canTime}
@@ -226,7 +215,7 @@
   .set-actions { display: flex; align-items: center; gap: var(--space-1); }
   .num { color: var(--color-text-faint); font-size: var(--text-sm); }
   .fields { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-  .set:not(.done):not(.readonly) .value input { color: var(--color-text-muted); }
+  .set:not(.done) .value input { color: var(--color-text-muted); }
   .stepper, .value { display: inline-flex; align-items: center; gap: 2px; }
   .value {
     background: var(--color-surface-2); border-radius: var(--radius-sm); padding: 0 var(--space-2);
@@ -245,6 +234,5 @@
     color: var(--color-text-faint); cursor: pointer; transition: background var(--transition-fast), border-color var(--transition-fast);
   }
   .tick.on { background: var(--color-workout); border-color: var(--color-workout); color: var(--color-on-kind); animation: pop var(--transition); }
-  .tick-static { color: var(--color-workout); display: inline-flex; align-items: center; }
   @keyframes pop { 50% { transform: scale(1.15); } }
 </style>

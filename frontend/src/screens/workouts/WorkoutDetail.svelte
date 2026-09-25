@@ -1,11 +1,10 @@
 <script lang="ts">
   import BackBar from '../../components/BackBar.svelte';
   import ConfirmSheet from '../../components/ConfirmSheet.svelte';
-  import SetRow from '../../components/SetRow.svelte';
   import { api, ApiError } from '../../lib/api';
   import { app } from '../../lib/app.svelte';
   import { longDate } from '../../lib/dates';
-  import { formatMinutes, titleCase } from '../../lib/format';
+  import { formatMinutes, setCells, titleCase } from '../../lib/format';
   import { goBack, navigate } from '../../lib/router.svelte';
   import { clearSetTimers } from '../../lib/timers';
   import { toast, toastError } from '../../lib/toast.svelte';
@@ -88,11 +87,18 @@
   </div>
 
   {#each workout.exercises as ex (ex.id)}
-    <section class="card">
+    <section class="card exercise">
       <strong>{ex.name}</strong>
-      {#each ex.sets as s, i (s.id)}
-        <SetRow set={s} index={i} fields={ex.fields} weightUnit={app.settings!.weight_unit} distanceUnit={app.settings!.distance_unit} readonly />
-      {/each}
+      <ol class="sets">
+        {#each ex.sets as s, i (s.id)}
+          <li class:undone={!s.done}>
+            <span class="num">Set {i + 1}</span>
+            {#each setCells(s, ex.fields, app.settings!.weight_unit, app.settings!.distance_unit) as cell, c (c)}
+              <span>{cell}</span>
+            {/each}
+          </li>
+        {/each}
+      </ol>
     </section>
   {/each}
 
@@ -116,5 +122,11 @@
 
 <style>
   .error { color: var(--color-danger); }
+  .exercise { gap: var(--space-2); }
+  .sets { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); font-variant-numeric: tabular-nums; }
+  /* One line per set; fixed columns so values line up down the list. */
+  .sets li { display: grid; grid-template-columns: 4em 5.5em 5.5em; gap: var(--space-3); }
+  .num { color: var(--color-text-muted); }
+  .undone { color: var(--color-text-muted); }
   .actions { display: grid; grid-template-columns: 1fr 2fr; gap: var(--space-2); margin-top: var(--space-4); }
 </style>
