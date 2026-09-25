@@ -1,10 +1,12 @@
 <script lang="ts">
   import BackBar from '../../components/BackBar.svelte';
+  import BodyMap from '../../components/BodyMap.svelte';
   import ConfirmSheet from '../../components/ConfirmSheet.svelte';
   import { api, ApiError } from '../../lib/api';
   import { app } from '../../lib/app.svelte';
   import { longDate } from '../../lib/dates';
   import { formatMinutes, setCells, titleCase } from '../../lib/format';
+  import { musclesFor } from '../../lib/muscles';
   import { goBack, navigate } from '../../lib/router.svelte';
   import { clearSetTimers } from '../../lib/timers';
   import { toast, toastError } from '../../lib/toast.svelte';
@@ -87,8 +89,12 @@
   </div>
 
   {#each workout.exercises as ex (ex.id)}
+    {@const muscles = app.catalog && musclesFor(app.catalog, ex.exercise_key)}
     <section class="card exercise">
-      <strong>{ex.name}</strong>
+      <div class="ex-head">
+        <strong>{ex.name}</strong>
+        {#if muscles}<BodyMap primary={muscles.primary} secondary={muscles.secondary} />{/if}
+      </div>
       <ol class="sets">
         {#each ex.sets as s, i (s.id)}
           <li class:undone={!s.done}>
@@ -123,6 +129,7 @@
 <style>
   .error { color: var(--color-danger); }
   .exercise { gap: var(--space-2); }
+  .ex-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
   .sets { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); font-variant-numeric: tabular-nums; }
   /* One line per set; fixed columns so values line up down the list. */
   .sets li { display: grid; grid-template-columns: 4em 5.5em 5.5em; gap: var(--space-3); }

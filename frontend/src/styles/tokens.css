@@ -29,6 +29,9 @@
      this), where white would read at ~2:1. So colours configured in
      config/apollo.yaml should stay light or mid-tone. */
   --color-on-kind: #0d1117;
+  /* Unworked regions of the muscle map: a neutral that reads against
+     --color-surface / --color-surface-2 without competing with the kind colour. */
+  --color-body: #4b5562;
 
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -89,6 +92,7 @@
     --color-warn: #b45309;
     --color-warn-soft: #b4530922;
     --color-on-accent: #ffffff;
+    --color-body: #adb5be;
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.08);
     --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.12);
   }

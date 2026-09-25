@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
+  import BodyMap from './BodyMap.svelte';
   import ConfigNotice from './ConfigNotice.svelte';
   import Icon from './Icon.svelte';
   import { titleCase } from '../lib/format';
@@ -45,6 +46,13 @@
 
 <svelte:window {onkeydown} />
 
+{#snippet item(e: ExerciseDef)}
+  <button class="item" onclick={() => pick(e.key)}>
+    <span>{e.name}</span>
+    <BodyMap primary={e.muscles.primary} secondary={e.muscles.secondary} ariaHidden />
+  </button>
+{/snippet}
+
 <button class="backdrop" aria-label="Close" onclick={onclose} transition:fade={{ duration: dur(150) }}></button>
 <div
   class="sheet"
@@ -71,14 +79,14 @@
   {#if recent.length}
     <p class="section-title">Recent</p>
     <div class="list">
-      {#each recent as e (e.key)}<button class="item" onclick={() => pick(e.key)}>{e.name}</button>{/each}
+      {#each recent as e (e.key)}{@render item(e)}{/each}
     </div>
   {/if}
 
   {#each groups as [group, list] (group)}
     <p class="section-title">{titleCase(group)}</p>
     <div class="list">
-      {#each list as e (e.key)}<button class="item" onclick={() => pick(e.key)}>{e.name}</button>{/each}
+      {#each list as e (e.key)}{@render item(e)}{/each}
     </div>
   {:else}
     {#if all.length === 0 && !needle}
@@ -102,6 +110,9 @@
   .search { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-muted); }
   .search .input { flex: 1; min-width: 0; }
   .list { display: grid; gap: 1px; background: var(--color-border-soft); border-radius: var(--radius-md); overflow: hidden; }
-  .item { min-height: var(--tap-min); padding: 0 var(--space-4); text-align: left; background: var(--color-surface-2); border: 0; cursor: pointer; color: var(--color-text); }
+  .item {
+    display: flex; justify-content: space-between; align-items: center; gap: var(--space-3);
+    min-height: var(--tap-min); padding: var(--space-1) var(--space-4); text-align: left; background: var(--color-surface-2); border: 0; cursor: pointer; color: var(--color-text);
+  }
   .item:active { background: var(--color-surface-3); }
 </style>

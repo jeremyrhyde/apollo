@@ -7,7 +7,15 @@ export type CalendarView = 'week' | 'month' | 'year';
 export type Range = '1W' | '1M' | '1Y';
 export type WeekStart = 'monday' | 'sunday';
 
-export interface ExerciseDef { key: string; name: string; type: string; groups: string[] }
+export type Muscle =
+  | 'biceps' | 'triceps' | 'forearm'
+  | 'front-deltoids' | 'back-deltoids'
+  | 'chest' | 'abs' | 'obliques'
+  | 'trapezius' | 'upper-back' | 'lower-back'
+  | 'quadriceps' | 'hamstring' | 'gluteal' | 'adductor' | 'abductors' | 'calves';
+export interface Muscles { primary: Muscle[]; secondary: Muscle[] }
+
+export interface ExerciseDef { key: string; name: string; type: string; groups: string[]; muscles: Muscles }
 export interface SelfcareTypeDef { key: string; name: string; every_days: number | null }
 export interface SelfcareCategoryDef { key: string; name: string; types: SelfcareTypeDef[] }
 

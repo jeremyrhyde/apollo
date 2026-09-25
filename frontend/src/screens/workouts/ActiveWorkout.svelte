@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { fly } from 'svelte/transition';
   import BackBar from '../../components/BackBar.svelte';
+  import BodyMap from '../../components/BodyMap.svelte';
   import ConfirmSheet from '../../components/ConfirmSheet.svelte';
   import ExercisePicker from '../../components/ExercisePicker.svelte';
   import Icon from '../../components/Icon.svelte';
@@ -11,6 +12,7 @@
   import { longDate } from '../../lib/dates';
   import { formatDuration, plural } from '../../lib/format';
   import { dur } from '../../lib/motion';
+  import { musclesFor } from '../../lib/muscles';
   import { PatchQueue } from '../../lib/patchQueue';
   import { goBack, navigate } from '../../lib/router.svelte';
   import { clearSetTimers } from '../../lib/timers';
@@ -222,9 +224,11 @@
   {/if}
 
   {#each workout.exercises as ex (ex.id)}
+    {@const muscles = app.catalog && musclesFor(app.catalog, ex.exercise_key)}
     <section class="card" in:fly={{ y: 12, duration: dur(180) }}>
       <div class="ex-head">
         <strong>{ex.name}</strong>
+        {#if muscles}<BodyMap primary={muscles.primary} secondary={muscles.secondary} />{/if}
         <button class="icon-btn" aria-label={`Remove ${ex.name}`} onclick={() => removeExercise(ex)}><Icon name="x" size={18} /></button>
       </div>
       {#each ex.sets as s, i (s.id)}
@@ -281,7 +285,8 @@
 <style>
   .warn-text { color: var(--color-danger); }
   .elapsed { display: flex; align-items: center; gap: var(--space-1); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
-  .ex-head { display: flex; justify-content: space-between; align-items: center; margin-right: calc(-1 * var(--space-2)); }
+  .ex-head { display: flex; align-items: center; gap: var(--space-3); margin-right: calc(-1 * var(--space-2)); }
+  .ex-head strong { flex: 1; }
   .bottom {
     position: sticky; bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-2));
     display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2);
