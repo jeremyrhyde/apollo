@@ -3,7 +3,6 @@
   import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import { dur } from '../lib/motion';
-  import { portal } from '../lib/portal';
 
   interface Props {
     title: string;
@@ -28,10 +27,9 @@
 
 <svelte:window {onkeydown} />
 
-<button class="backdrop" use:portal aria-label="Close" onclick={oncancel} transition:fade={{ duration: dur(150) }}></button>
+<button class="backdrop" aria-label="Close" onclick={oncancel} transition:fade={{ duration: dur(150) }}></button>
 <div
   class="sheet"
-  use:portal
   role="dialog"
   aria-modal="true"
   aria-label={title}

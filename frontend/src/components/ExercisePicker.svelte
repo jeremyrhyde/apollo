@@ -5,7 +5,6 @@
   import Icon from './Icon.svelte';
   import { titleCase } from '../lib/format';
   import { dur } from '../lib/motion';
-  import { portal } from '../lib/portal';
   import { readRecent, rememberRecent } from '../lib/recent';
   import type { Catalog, ExerciseDef } from '../lib/types';
 
@@ -46,10 +45,9 @@
 
 <svelte:window {onkeydown} />
 
-<button class="backdrop" use:portal aria-label="Close" onclick={onclose} transition:fade={{ duration: dur(150) }}></button>
+<button class="backdrop" aria-label="Close" onclick={onclose} transition:fade={{ duration: dur(150) }}></button>
 <div
   class="sheet"
-  use:portal
   role="dialog"
   aria-modal="true"
   aria-label="Add exercise"

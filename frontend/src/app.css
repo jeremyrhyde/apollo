@@ -111,6 +111,9 @@ textarea.input { padding: var(--space-2) var(--space-3); min-height: 88px; resiz
   background: var(--color-surface); border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   box-shadow: var(--shadow-2); display: grid; gap: var(--space-4);
 }
+/* `.screen` is a stacking context (view-transition-name), so a sheet inside it
+   can't out-rank the fixed tab bar by itself; lift the screen while one is open. */
+.screen:has(.sheet) { position: relative; z-index: 25; }
 .sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
 
 /* ------------------------------------------------------------ view transitions */
