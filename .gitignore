@@ -1,9 +1,12 @@
+# ---- Pantheon standard: keep this block identical across repos ----
 # Python
 __pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
 .venv/
+dist/
+build/
 
 # Local config and secrets — commit the *.example copies instead
 .env
@@ -16,10 +19,16 @@ __pycache__/
 logs/
 *.log
 
-# Editors / OS / tools
-.DS_Store
-.claude/
-
 # Frontend
-frontend/node_modules/
+node_modules/
+
+# Editors / OS / sync tools
+.DS_Store
+.codesync
+.stfolder
+.stignore
+*.sync-conflict-*
+
+# ---- apollo-specific ----
+.claude/
 frontend/dist/
