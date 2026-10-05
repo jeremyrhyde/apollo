@@ -2,9 +2,9 @@
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
-// Served by FastAPI at /ui/; in dev, Vite serves the UI and forwards /api.
+// Served by FastAPI at / (and by Pantheon under /apollo/); in dev, Vite serves the UI and forwards /api.
 export default defineConfig({
-  base: '/ui/',
+  base: './',
   plugins: [svelte()],
   server: {
     port: 5173,

@@ -36,16 +36,17 @@ fi
 
 # Resolve the URL Chromium opens, in priority order:
 #   1. APOLLO_UI_URL — explicit full override (wins if set).
-#   2. SERVER_IP_ADDRESS — point the kiosk at a server on the network
-#      (e.g. a central Pi running the FastAPI app); we build the standard
-#      http://<ip>:${PORT}/ui/ URL around it.
+#   2. SERVER_IP_ADDRESS — point the kiosk at an Apollo server elsewhere on
+#      the network; we build http://<ip>:${PORT:-8001}/ around it.
 #   3. localhost — this Pi runs its own server (the default).
+# Inside a full Pantheon install, use Pantheon's kiosk instead
+# (make kiosk-install MODULE=apollo in the pantheon repo).
 if [[ -n "${APOLLO_UI_URL:-}" ]]; then
   UI_URL="${APOLLO_UI_URL}"
 elif [[ -n "${SERVER_IP_ADDRESS:-}" ]]; then
-  UI_URL="http://${SERVER_IP_ADDRESS}:${PORT:-8000}/ui/"
+  UI_URL="http://${SERVER_IP_ADDRESS}:${PORT:-8001}/"
 else
-  UI_URL="http://localhost:${PORT:-8000}/ui/"
+  UI_URL="http://localhost:${PORT:-8001}/"
 fi
 echo "start-kiosk: opening ${UI_URL}" >&2
 

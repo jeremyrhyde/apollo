@@ -50,7 +50,7 @@ linux() {
       echo "[3/3] status"
       systemctl --user status "$SERVICE_NAME" --no-pager -l || true
       echo
-      echo "Server: http://$(hostname -I 2>/dev/null | awk '{print $1}'):8000/ui/"
+      echo "Server: http://$(hostname -I 2>/dev/null | awk '{print $1}'):8001/"
       echo "Logs:   make service-logs"
       ;;
     uninstall)
@@ -81,7 +81,7 @@ macos() {
       echo "[3/3] status"
       launchctl print "$target/$LAUNCHD_LABEL" | grep -E '^\s*(state|pid) =' || true
       echo
-      echo "Server: http://localhost:8000/ui/"
+      echo "Server: http://localhost:8001/"
       echo "Logs:   make service-logs  ($LOG_DIR/apollo.log)"
       ;;
     uninstall)

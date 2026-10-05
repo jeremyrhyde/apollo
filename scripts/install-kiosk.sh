@@ -39,7 +39,7 @@ source "$(dirname "$0")/_common.sh"
 
 if [[ "$OS" != "Linux" ]]; then
   echo "The kiosk is Linux/Raspberry Pi only (systemd + X + Chromium)." >&2
-  echo "On macOS, just open http://localhost:8000/ui/ in a browser." >&2
+  echo "On macOS, just open http://localhost:8001/ in a browser." >&2
   exit 1
 fi
 
