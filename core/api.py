@@ -275,6 +275,29 @@ def _build_calendar_router() -> APIRouter:
     return router
 
 
+def _build_status_router() -> APIRouter:
+    """GET /api/status — the optional Pantheon module-status contract."""
+
+    router = APIRouter(tags=["meta"])
+
+    @router.get("/status")
+    def module_status(request: Request) -> dict[str, Any]:
+        s = _svc(request)
+        errors = list(s.catalog.errors)
+        due = [item for item in s.selfcare.due_list() if item.status in ("due", "overdue")]
+        return {
+            "state": "degraded" if errors else "ok",
+            "summary": None,
+            "stats": [
+                {"label": "Config errors", "value": len(errors), "kind": "count", "warn": bool(errors)},
+                {"label": "Self-care due today", "value": len(due), "kind": "count"},
+                {"label": "Last workout", "value": s.calendar.last_done().workout, "kind": "text"},
+            ],
+        }
+
+    return router
+
+
 # ------------------------------------------------------------------ app
 
 
@@ -307,6 +330,7 @@ def create_app(services: Services, *, lifespan: Any = None, mount_static: bool =
         _build_workouts_router,
         _build_selfcare_router,
         _build_calendar_router,
+        _build_status_router,
     ):
         api.include_router(build())
     app.include_router(_build_health_router())
