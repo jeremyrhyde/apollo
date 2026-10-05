@@ -33,8 +33,10 @@ working version to adapt:
   `main.build_services()` and put on `app.state.services` in `create_app()`;
   the lifespan only closes the DB on shutdown. API is served under `/api`.
 - Web UI: Svelte 5 (runes only) + Vite + TypeScript in `frontend/`, built to
-  `frontend/dist` and served at `/ui`. All fetches go through
-  `frontend/src/lib/api.ts`. Design tokens (colors, radii, spacing, type
+  `frontend/dist` and served at `/`. All fetches go through
+  `frontend/src/lib/api.ts`. Pantheon contract: fetches use relative paths
+  (no leading `/`; Vite `base: './'`); `/health` is at the root. Design
+  tokens (colors, radii, spacing, type
   sizes, durations) live in `frontend/src/styles/tokens.css`; no hex values
   in components. Tap targets are at least `var(--tap-min)`; inputs are at
   least 16px to avoid iOS zoom-on-focus.

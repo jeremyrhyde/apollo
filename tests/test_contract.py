@@ -5,14 +5,16 @@ works standalone (http://pi:8001/) and behind Pantheon's gateway
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 from config import Settings
+from main import build_app
 
 
 def test_default_port_is_8001(monkeypatch):
     monkeypatch.delenv("PORT", raising=False)
     assert Settings(_env_file=None).PORT == 8001
-
-from main import build_app
 
 
 def test_health_is_at_the_root_and_every_other_route_under_api(tmp_path, config_dir, now):
@@ -25,9 +27,6 @@ def test_health_is_at_the_root_and_every_other_route_under_api(tmp_path, config_
     assert "/health" in paths
     assert [p for p in paths if p != "/health" and not p.startswith("/api/")] == []
 
-
-import re
-from pathlib import Path
 
 FRONTEND = Path(__file__).resolve().parent.parent / "frontend"
 
