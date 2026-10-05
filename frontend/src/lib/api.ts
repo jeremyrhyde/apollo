@@ -26,10 +26,12 @@ export function detailOf(body: unknown): string | null {
   return null;
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, base = 'api'): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`/api${path}`, {
+    // Relative to the page (no leading slash), so it works at :8001/ and
+    // under Pantheon's /apollo/.
+    res = await fetch(`${base}${path}`, {
       method,
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -51,7 +53,7 @@ const q = (params: Record<string, string | undefined>) => {
 };
 
 export const api = {
-  health: () => request<Health>('GET', '/health'),
+  health: () => request<Health>('GET', '/health', undefined, '.'),
   today: () => request<{ today: string }>('GET', '/today'),
   catalog: () => request<Catalog>('GET', '/catalog'),
   settings: () => request<Settings>('GET', '/settings'),

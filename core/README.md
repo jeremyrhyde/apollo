@@ -5,7 +5,7 @@ Apollo's domain.
 
 Present now:
 
-- `api.py` — `create_app()`, one router per area under `/api`, static `/ui`
+- `api.py` — `create_app()`, one router per area under `/api`, `/health`, static UI at `/`
   mount, domain errors mapped to HTTP statuses.
 - `container.py` — `Services`, the object graph `main.build_services()` builds
   once and the routes read from `app.state`.

@@ -1,4 +1,4 @@
-"""HTTP surface: everything under /api, the built UI at /ui.
+"""HTTP surface: everything under /api, the built UI at /, /health at the root.
 
 One `_build_<area>_router()` per area. Domain errors map to their status with
 the message as `detail`. Values cross the API in display units (Settings:
@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import APIRouter, FastAPI, Query, Request, Response, status
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -81,7 +81,9 @@ def _patch_to_si(patch: SetPatch, prefs: UnitPrefs) -> dict[str, Any]:
 # ------------------------------------------------------------------ routers
 
 
-def _build_meta_router() -> APIRouter:
+def _build_health_router() -> APIRouter:
+    # At the root, not under /api: the Pantheon contract fixes /health so the
+    # gateway, home screen and installers can probe any module the same way.
     router = APIRouter(tags=["meta"])
 
     @router.get("/health")
@@ -89,6 +91,12 @@ def _build_meta_router() -> APIRouter:
         s = _svc(request)
         errors = list(s.catalog.errors)
         return {"status": "degraded" if errors else "ok", "config_errors": errors}
+
+    return router
+
+
+def _build_meta_router() -> APIRouter:
+    router = APIRouter(tags=["meta"])
 
     @router.get("/today")
     def today(request: Request) -> dict[str, str]:
@@ -301,14 +309,12 @@ def create_app(services: Services, *, lifespan: Any = None, mount_static: bool =
         _build_calendar_router,
     ):
         api.include_router(build())
+    app.include_router(_build_health_router())
     app.include_router(api)
-
-    @app.get("/", include_in_schema=False)
-    def root() -> RedirectResponse:
-        return RedirectResponse("/ui/")
 
     web_dir = Path(services.settings.WEB_DIR)
     if mount_static and web_dir.is_dir():
-        app.mount("/ui", _UIFiles(directory=web_dir, html=True), name="ui")
+        # Last: a mount at "/" shadows any route registered after it.
+        app.mount("/", _UIFiles(directory=web_dir, html=True), name="ui")
 
     return app

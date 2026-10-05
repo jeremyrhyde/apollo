@@ -1,5 +1,5 @@
 // Hash routes: '#/workouts/42?edit=1'. Everything after '#' stays in the
-// browser; the server always serves the same index.html at /ui/.
+// browser; the server always serves the same index.html at /.
 
 export interface Route {
   path: string[];

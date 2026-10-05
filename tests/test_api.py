@@ -8,7 +8,7 @@ def start(client, planned=None):
 
 
 def test_health_and_today(client):
-    assert client.get("/api/health").json() == {"status": "ok", "config_errors": []}
+    assert client.get("/health").json() == {"status": "ok", "config_errors": []}
     assert client.get("/api/today").json() == {"today": "2026-09-22"}
 
 
@@ -123,8 +123,8 @@ def test_calendar_and_last_done(client):
 
 
 def test_ui_not_mounted_without_build(client):
+    assert client.get("/").status_code == 404
     assert client.get("/ui/").status_code == 404
-    assert client.get("/", follow_redirects=False).headers["location"] == "/ui/"
 
 
 @pytest.mark.parametrize(
@@ -209,10 +209,11 @@ def test_ui_cache_headers(tmp_path, config_dir, now):
     (web / "assets" / "x.js").write_text("console.log(1)")
     settings = Settings(DB_PATH=str(tmp_path / "ui.db"), CONFIG_DIR=str(config_dir), WEB_DIR=str(web))
     with TestClient(build_app(settings, now_fn=now)) as c:
-        for path in ("/ui/", "/ui/index.html", "/ui/manifest.webmanifest"):
+        for path in ("/", "/index.html", "/manifest.webmanifest"):
             r = c.get(path)
             assert r.status_code == 200, path
             assert r.headers["cache-control"] == "no-cache", path
-        r = c.get("/ui/assets/x.js")
+        assert c.get("/health").json()["status"] == "ok"  # not shadowed by the UI mount
+        r = c.get("/assets/x.js")
         assert r.status_code == 200
         assert r.headers["cache-control"] == "public, max-age=31536000, immutable"

@@ -1,7 +1,7 @@
 """Load and validate the YAML catalog in CONFIG_DIR.
 
 Every file is loaded independently. A file that is missing or invalid is
-reported in `Catalog.errors` (surfaced at /api/health and in Settings) and
+reported in `Catalog.errors` (surfaced at /health and in Settings) and
 replaced by its empty default, so one bad file never takes the server down or
 hides the others.
 """

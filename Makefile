@@ -38,9 +38,9 @@ help:
 	@echo "  make distclean        clean + remove .venv and frontend/node_modules"
 	@echo ""
 	@echo "Run:"
-	@echo "  make run-dev          API with reload on :$(PORT) + UI dev server on :5173/ui/"
+	@echo "  make run-dev          API with reload on :$(PORT) + UI dev server on :5173/"
 	@echo "  make open             Open the web UI in a browser"
-	@echo "  make health           curl /api/health on a running server"
+	@echo "  make health           curl /health on a running server"
 	@echo ""
 	@echo "Tests:"
 	@echo "  make test             pytest, then vitest"
@@ -143,18 +143,18 @@ run:
 
 .PHONY: run-dev
 run-dev:
-	@echo "API on :$(PORT) — UI dev server on http://localhost:5173/ui/"
+	@echo "API on :$(PORT) — UI dev server on http://localhost:5173/"
 	@trap 'kill 0' INT TERM EXIT; \
 	(cd $(FRONTEND) && $(NPM) run dev -- --host) & \
 	$(UV) run uvicorn main:build_app --factory --reload --host $(HOST) --port $(PORT)
 
 .PHONY: open
 open:
-	@python3 -c "import webbrowser; webbrowser.open('$(APOLLO_HOST)/ui/')"
+	@python3 -c "import webbrowser; webbrowser.open('$(APOLLO_HOST)/')"
 
 .PHONY: health
 health:
-	@curl -sS $(APOLLO_HOST)/api/health && echo ""
+	@curl -sS $(APOLLO_HOST)/health && echo ""
 
 # ---------------------------------------------------------------------------
 # Tests
