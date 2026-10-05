@@ -12,7 +12,7 @@ FRONTEND := frontend
 # Host/port for run-dev and the live checks. `make run` and the background
 # service read HOST/PORT from config.Settings (the environment / .env).
 HOST ?= 0.0.0.0
-PORT ?= 8000
+PORT ?= 8001
 APOLLO_HOST ?= http://localhost:$(PORT)
 
 .DEFAULT_GOAL := help

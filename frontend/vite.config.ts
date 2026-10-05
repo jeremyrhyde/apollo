@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [svelte()],
   server: {
     port: 5173,
-    proxy: { '/api': 'http://localhost:8000' },
+    proxy: { '/api': 'http://localhost:8001', '/health': 'http://localhost:8001' },
   },
   build: { outDir: 'dist', emptyOutDir: true },
   test: { include: ['src/**/*.test.ts'], environment: 'node' },

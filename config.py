@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     """Runtime settings for the Apollo server."""
 
     HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    PORT: int = 8001
     LOG_LEVEL: str = "info"
     WEB_DIR: str = "./frontend/dist"
     DB_PATH: str = "./apollo.db"
