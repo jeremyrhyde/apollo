@@ -26,7 +26,7 @@ help:
 	@echo "Apollo — make targets"
 	@echo ""
 	@echo "Pipeline (Linux + macOS):"
-	@echo "  make setup            Ensure uv is installed and Node 20+ is present"
+	@echo "  make setup            Install uv and Node 20+ (if missing) to build the UI"
 	@echo "  make build            Sync Python deps, build the UI into frontend/dist"
 	@echo "  make run              Serve API + built UI in the foreground"
 	@echo "  -> full bootstrap:    make setup build run"
@@ -77,13 +77,32 @@ setup:
 		fi; \
 		echo "uv installed to $(HOME)/.local/bin — ensure it is on your PATH."; \
 	fi
-	@if command -v node >/dev/null 2>&1 && [ "$$(node -p 'process.versions.node.split(".")[0]')" -ge 20 ]; then \
+	@if command -v node >/dev/null 2>&1 && [ "$$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null)" -ge 20 ] 2>/dev/null; then \
 		echo "node present: $$(node --version)"; \
 	else \
-		echo "ERROR: Node.js 20+ is required to build the UI."; \
-		echo "  macOS:     brew install node"; \
-		echo "  Pi/Debian: install Node 20+ from https://nodejs.org/en/download (NodeSource)"; \
-		exit 1; \
+		echo "Node.js 20+ not found — installing (needed to build the UI)..."; \
+		if [ "$$(uname)" = "Darwin" ]; then \
+			command -v brew >/dev/null 2>&1 || { echo "ERROR: Homebrew required. Install from https://brew.sh, then re-run 'make setup'."; exit 1; }; \
+			brew install node; \
+		elif command -v apt-get >/dev/null 2>&1; then \
+			command -v curl >/dev/null 2>&1 || { echo "ERROR: need curl to install Node. Install curl, then re-run 'make setup'."; exit 1; }; \
+			SUDO=""; [ "$$(id -u)" -ne 0 ] && SUDO="sudo"; \
+			if [ -n "$$SUDO" ] && ! sudo -n true 2>/dev/null; then echo "  (installing Node system-wide — you may be prompted for your sudo password)"; fi; \
+			curl -fsSL https://deb.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh && \
+			$$SUDO bash /tmp/nodesource_setup.sh && \
+			$$SUDO apt-get install -y nodejs && \
+			rm -f /tmp/nodesource_setup.sh; \
+		else \
+			echo "ERROR: cannot auto-install Node 20+ on this OS."; \
+			echo "  Install Node 20+ from https://nodejs.org/en/download, then re-run 'make setup'."; \
+			exit 1; \
+		fi; \
+		if command -v node >/dev/null 2>&1 && [ "$$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null)" -ge 20 ] 2>/dev/null; then \
+			echo "node installed: $$(node --version)"; \
+		else \
+			echo "ERROR: Node install did not produce Node 20+ on PATH. See https://nodejs.org/en/download"; \
+			exit 1; \
+		fi; \
 	fi
 
 .PHONY: build
