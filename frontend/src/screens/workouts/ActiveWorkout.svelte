@@ -292,5 +292,5 @@
     display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2);
     padding: var(--space-2); background: var(--color-bg); border-radius: var(--radius-lg);
   }
-  @media (min-width: 900px) { .bottom { bottom: var(--space-4); } }
+  @media (min-width: 900px), (orientation: landscape) and (max-height: 560px) { .bottom { bottom: var(--space-4); } }
 </style>

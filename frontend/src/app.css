@@ -29,8 +29,48 @@ input, select, textarea { font-size: max(16px, var(--text-md)); } /* no iOS zoom
   view-transition-name: screen;
 }
 
+/* Layout follows the viewport, not the device. Three breakpoints, repeated
+   literally wherever they apply (media queries can't read custom properties):
+     wide   (min-width: 720px)                         hubs go two-column
+     desk   (min-width: 900px)                         tab bar moves to the top
+     short  (orientation: landscape) and (max-height: 560px)
+                                                       tab bar becomes a left rail;
+                                                       wins over desk
+   The 800x480 kiosk panel is wide + short; a phone is neither, a phone held
+   sideways is short. */
+
 @media (min-width: 900px) {
   .screen { padding-top: calc(var(--tabbar-h) + var(--space-6) + var(--safe-top)); padding-bottom: var(--space-10); }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .screen {
+    padding: calc(var(--space-4) + var(--safe-top)) calc(var(--space-4) + var(--safe-right))
+      calc(var(--space-6) + var(--safe-bottom)) calc(var(--rail-w) + var(--space-4) + var(--safe-left));
+  }
+  .btn.big { min-height: var(--tap-min); }
+}
+
+/* Hub screens (Workouts, Self-care): `.hub` wraps three groups — main (title,
+   primary action, what's due), side (the month calendar), foot (links below).
+   Narrow, every group is `display: contents`, so their children are plain
+   `.screen` rows in source order. Wide, main and foot stack on the left and
+   the calendar sits beside them. */
+.hub, .hub-main, .hub-side, .hub-foot { display: contents; }
+
+@media (min-width: 720px) {
+  .screen:has(.hub) { max-width: var(--content-max-wide); }
+  .hub {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    /* foot is the flexible row, so a calendar taller than main grows it
+       instead of opening gaps between main's rows */
+    grid-template-rows: auto 1fr; grid-template-areas: 'main side' 'foot side';
+    gap: var(--space-4) var(--space-6);
+  }
+  .hub-main, .hub-side, .hub-foot { display: grid; gap: var(--space-4); align-content: start; }
+  .hub-main { grid-area: main; }
+  .hub-side { grid-area: side; }
+  .hub-foot { grid-area: foot; }
 }
 
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }

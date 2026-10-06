@@ -135,49 +135,57 @@
 
 </script>
 
-<header class="page-head"><h1>Workouts</h1></header>
+<div class="hub">
+  <div class="hub-main">
+    <header class="page-head"><h1>Workouts</h1></header>
 
-<ConfigNotice />
+    <ConfigNotice />
 
-{#if loaded}
-  {#if open?.reopened}
-    <section class="banner stack">
-      <p>Editing workout from {longDate(open.local_date)}.</p>
-      <div class="row">
-        <button class="btn primary" disabled={busy} onclick={askSaveReopened}>Save</button>
-        <button class="btn" disabled={busy} onclick={() => open && navigateVia(['workouts', String(open.id)], ['workouts', 'active'])}>Keep editing</button>
-      </div>
-    </section>
-  {:else if open?.stale}
-    <section class="banner warn stack">
-      <p>A workout from {longDate(open.local_date)} is still open.</p>
-      <div class="row">
-        <button class="btn" disabled={busy} onclick={finishStale}>Finish</button>
-        <button class="btn danger" disabled={busy} onclick={() => (confirmDiscard = true)}>Discard</button>
-        <button class="btn" disabled={busy} onclick={() => navigate(['workouts', 'active'])}>Keep going</button>
-      </div>
-    </section>
-  {:else if open}
-    <button class="banner resume" onclick={() => navigate(['workouts', 'active'])}>
-      <span><strong>In progress</strong> · {plural(open.exercises.length, 'exercise')} · {formatDuration(Math.round((now - Date.parse(open.started_at)) / 1000))}</span>
-      <span class="row">Resume <Icon name="chevron-right" /></span>
+    {#if loaded}
+      {#if open?.reopened}
+        <section class="banner stack">
+          <p>Editing workout from {longDate(open.local_date)}.</p>
+          <div class="row">
+            <button class="btn primary" disabled={busy} onclick={askSaveReopened}>Save</button>
+            <button class="btn" disabled={busy} onclick={() => open && navigateVia(['workouts', String(open.id)], ['workouts', 'active'])}>Keep editing</button>
+          </div>
+        </section>
+      {:else if open?.stale}
+        <section class="banner warn stack">
+          <p>A workout from {longDate(open.local_date)} is still open.</p>
+          <div class="row">
+            <button class="btn" disabled={busy} onclick={finishStale}>Finish</button>
+            <button class="btn danger" disabled={busy} onclick={() => (confirmDiscard = true)}>Discard</button>
+            <button class="btn" disabled={busy} onclick={() => navigate(['workouts', 'active'])}>Keep going</button>
+          </div>
+        </section>
+      {:else if open}
+        <button class="banner resume" onclick={() => navigate(['workouts', 'active'])}>
+          <span><strong>In progress</strong> · {plural(open.exercises.length, 'exercise')} · {formatDuration(Math.round((now - Date.parse(open.started_at)) / 1000))}</span>
+          <span class="row">Resume <Icon name="chevron-right" /></span>
+        </button>
+      {:else}
+        <button class="btn primary big" disabled={busy} onclick={start}><Icon name="plus" /> Start workout</button>
+      {/if}
+    {/if}
+  </div>
+
+  <div class="hub-side">
+    <button class="card" onclick={() => navigate(['calendar'], { kind: 'workout', view: 'month' })}>
+      <span class="row between"><strong>{monthLabel(app.today)}</strong><Icon name="chevron-right" /></span>
+      <Calendar view="month" anchor={app.today} weekStart={app.settings!.week_start} today={app.today} {days} kinds={['workout']} compact />
     </button>
-  {:else}
-    <button class="btn primary big" disabled={busy} onclick={start}><Icon name="plus" /> Start workout</button>
-  {/if}
-{/if}
+  </div>
 
-<button class="card" onclick={() => navigate(['calendar'], { kind: 'workout', view: 'month' })}>
-  <span class="row between"><strong>{monthLabel(app.today)}</strong><Icon name="chevron-right" /></span>
-  <Calendar view="month" anchor={app.today} weekStart={app.settings!.week_start} today={app.today} {days} kinds={['workout']} compact />
-</button>
+  <div class="hub-foot">
+    <button class="btn block" onclick={() => navigate(['workouts', 'history'])}><Icon name="clock" /> Past workouts</button>
 
-<button class="btn block" onclick={() => navigate(['workouts', 'history'])}><Icon name="clock" /> Past workouts</button>
-
-<section class="card stats">
-  <span class="row"><Icon name="chart" /><strong>Stats</strong></span>
-  <p class="muted">Coming soon — strength progress, distance totals and personal bests.</p>
-</section>
+    <section class="card stats">
+      <span class="row"><Icon name="chart" /><strong>Stats</strong></span>
+      <p class="muted">Coming soon — strength progress, distance totals and personal bests.</p>
+    </section>
+  </div>
+</div>
 
 {#if confirmSaveEmpty}
   <ConfirmSheet title="Save changes?" confirmLabel="Save" danger {busy} onconfirm={saveReopened} oncancel={() => (confirmSaveEmpty = false)}>

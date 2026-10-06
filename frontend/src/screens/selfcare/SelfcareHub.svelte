@@ -36,35 +36,43 @@
   });
 </script>
 
-<header class="page-head"><h1>Self-care</h1></header>
+<div class="hub">
+  <div class="hub-main">
+    <header class="page-head"><h1>Self-care</h1></header>
 
-<ConfigNotice />
+    <ConfigNotice />
 
-<button class="btn primary big" onclick={() => navigate(['selfcare', 'log'])}><Icon name="plus" /> Log skincare</button>
+    <button class="btn primary big" onclick={() => navigate(['selfcare', 'log'])}><Icon name="plus" /> Log skincare</button>
 
-{#if dueError}
-  <p class="error">Couldn't load what's due: {dueError}</p>
-{:else if due.length}
-  <section class="card">
-    <strong>Due</strong>
-    <ul class="due">
-      {#each due as item (`${item.category_key}.${item.type_key}`)}
-        <li class={item.status}>
-          <span class="status" aria-hidden="true"></span>
-          <span class="name">{item.type_name}</span>
-          <span class="when">{dueText(item)}</span>
-        </li>
-      {/each}
-    </ul>
-  </section>
-{/if}
+    {#if dueError}
+      <p class="error">Couldn't load what's due: {dueError}</p>
+    {:else if due.length}
+      <section class="card">
+        <strong>Due</strong>
+        <ul class="due">
+          {#each due as item (`${item.category_key}.${item.type_key}`)}
+            <li class={item.status}>
+              <span class="status" aria-hidden="true"></span>
+              <span class="name">{item.type_name}</span>
+              <span class="when">{dueText(item)}</span>
+            </li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
+  </div>
 
-<button class="card" onclick={() => navigate(['calendar'], { kind: 'selfcare', view: 'month' })}>
-  <span class="row between"><strong>{monthLabel(app.today)}</strong><Icon name="chevron-right" /></span>
-  <Calendar view="month" anchor={app.today} weekStart={app.settings!.week_start} today={app.today} {days} kinds={['selfcare']} compact />
-</button>
+  <div class="hub-side">
+    <button class="card" onclick={() => navigate(['calendar'], { kind: 'selfcare', view: 'month' })}>
+      <span class="row between"><strong>{monthLabel(app.today)}</strong><Icon name="chevron-right" /></span>
+      <Calendar view="month" anchor={app.today} weekStart={app.settings!.week_start} today={app.today} {days} kinds={['selfcare']} compact />
+    </button>
+  </div>
 
-<button class="btn block" onclick={() => navigate(['selfcare', 'history'])}><Icon name="clock" /> Past sessions</button>
+  <div class="hub-foot">
+    <button class="btn block" onclick={() => navigate(['selfcare', 'history'])}><Icon name="clock" /> Past sessions</button>
+  </div>
+</div>
 
 <style>
   .error { color: var(--color-danger); }

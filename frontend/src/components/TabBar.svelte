@@ -54,4 +54,16 @@
     }
     button { flex: 0 0 150px; flex-direction: row; gap: var(--space-2); font-size: var(--text-sm); }
   }
+  /* Short landscape (the 800x480 kiosk panel, a phone held sideways): height
+     is the scarce axis, so the bar becomes a left rail. After the 900px rule
+     so it wins on a wide-and-short screen. */
+  @media (orientation: landscape) and (max-height: 560px) {
+    .tabbar {
+      top: 0; bottom: 0; right: auto; width: calc(var(--rail-w) + var(--safe-left));
+      flex-direction: column; justify-content: center;
+      border-top: 0; border-bottom: 0; border-right: 1px solid var(--color-border);
+      padding: var(--safe-top) 0 var(--safe-bottom) var(--safe-left);
+    }
+    button { flex: 1 1 0; max-height: 96px; flex-direction: column; gap: 2px; font-size: var(--text-xs); }
+  }
 </style>

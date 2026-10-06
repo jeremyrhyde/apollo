@@ -14,7 +14,8 @@
   .toasts {
     position: fixed; left: 50%; transform: translateX(-50%); z-index: 40;
     /* Below 900px the tab bar sits at the bottom (--tabbar-h tall); above
-       that it moves to the top, so toasts only need to clear the safe area. */
+       that, or on a short landscape screen, it moves to the top or the left,
+       so toasts only need to clear the safe area. */
     bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--space-3));
     display: grid; gap: var(--space-2); width: min(92vw, 420px); pointer-events: none;
   }
@@ -24,7 +25,7 @@
   }
   .toast.error { background: var(--color-danger); color: var(--color-on-accent); }
 
-  @media (min-width: 900px) {
+  @media (min-width: 900px), (orientation: landscape) and (max-height: 560px) {
     .toasts { bottom: calc(var(--safe-bottom) + var(--space-4)); }
   }
 </style>

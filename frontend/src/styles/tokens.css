@@ -66,6 +66,10 @@
   --tap-min: 44px;
   --tabbar-h: 58px;
   --content-max: 640px;
+  /* Hub screens go two-column at the "wide" breakpoint (app.css). */
+  --content-max-wide: 1040px;
+  /* Tab bar as a left rail on short landscape screens (TabBar.svelte). */
+  --rail-w: 76px;
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
